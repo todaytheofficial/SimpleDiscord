@@ -389,13 +389,86 @@ io.on('connection', (socket) => {
 
     // --- Friend Request Handlers ---
 
-    socket.on('sendFriendRequest', (recipientUsername) => {
+socket.on('sendFriendRequest', (recipientUsername) => {
         if (!currentUser) return;
         const recipient = getUserByUsername(recipientUsername);
+
+        if (!recipient) {
+            return socket.emit('requestError', `User "${recipientUsername}" not found.`);
+        }
+        if (recipient.id === currentUser.id) {
+            return socket.emit('requestError', 'You cannot send a request to yourself.');
+        }
         
-        // ... (проверки и логика отправки запроса)
+        // Check if already friends
+        if ((friends[currentUser.id] || []).includes(recipient.id)) {
+            return socket.emit('requestError', `${recipient.username} is already your friend.`);
+        }
         
-        // (Логика отправки запроса опущена для краткости, она была в предыдущем ответе и предполагается, что она корректна)
+        // Check for existing pending request (A -> B or B -> A)
+        friendRequests[currentUser.id] = friendRequests[currentUser.id] || {};
+        friendRequests[recipient.id] = friendRequests[recipient.id] || {};
+
+        if (friendRequests[currentUser.id][recipient.id] === 'pending') {
+            return socket.emit('requestError', `Request already sent to ${recipient.username}.`);
+        }
+        if (friendRequests[recipient.id][currentUser.id] === 'pending') {
+            // If recipient already sent a request to current user, accept it immediately
+            // NOTE: This automatic acceptance logic is optional but common in many messengers
+            const data = { userId: currentUser.id, action: 'accept' };
+            // Simulate the action being handled by the recipient's handler
+            // It's cleaner to just call the handleFriendRequest logic directly
+            
+            // Temporary variables for friend list update
+            const senderId = recipient.id;
+            const recipientId = currentUser.id;
+            
+            // --- Auto-Accept Logic (Same as handleFriendRequest: 'accept') ---
+            friends[senderId] = friends[senderId] || [];
+            friends[recipientId] = friends[recipientId] || [];
+
+            if (!friends[senderId].includes(recipientId)) {
+                friends[senderId].push(recipientId);
+            }
+            if (!friends[recipientId].includes(senderId)) {
+                friends[recipientId].push(senderId);
+            }
+            
+            const dmChannel = createDMChannel(senderId, recipientId);
+            
+            delete friendRequests[senderId][recipientId];
+
+            socket.emit('requestSuccess', `${recipient.username} already sent you a request. Automatically accepted!`);
+            
+            // Notify the *other* user (the original sender)
+            if (connectedUsers[senderId]) {
+                connectedUsers[senderId].emit('friendRequestAccepted', {
+                    userId: recipientId,
+                    username: currentUser.username,
+                    avatar: currentUser.avatar,
+                    channelId: dmChannel.id
+                });
+            }
+            
+            // Notify current user (recipient) to refresh their list
+            socket.emit('authenticate', generateToken(currentUser)); 
+            // --- End Auto-Accept Logic ---
+
+            return;
+        }
+
+        // --- Send new pending request ---
+        friendRequests[currentUser.id][recipient.id] = 'pending';
+        socket.emit('requestSuccess', `Friend request sent to ${recipient.username}.`);
+
+        // Notify recipient if they are online
+        if (connectedUsers[recipient.id]) {
+            connectedUsers[recipient.id].emit('friendRequestReceived', {
+                userId: currentUser.id,
+                username: currentUser.username,
+                avatar: currentUser.avatar
+            });
+        }
     });
 
     socket.on('handleFriendRequest', ({ userId, action }) => {
