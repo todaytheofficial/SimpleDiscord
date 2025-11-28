@@ -1,24 +1,30 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCord Messenger</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css"> 
 </head>
 <body class="theme-dark">
 
     <div id="app-container">
         <div id="friends-channels-panel">
-            <input type="text" id="friend-search-input" placeholder="Найти друга или начать DM..." />
-
+            <input type="text" id="friend-search-input" placeholder="Search for friends or start a DM..." />
+            
+            <div id="add-friend-block" style="margin-bottom: 15px;">
+                <input type="text" id="add-friend-input" class="modal-input" placeholder="Username to add" style="width: 100%; margin: 0 0 5px 0;" />
+                <button onclick="sendFriendRequestUI()" class="modal-button" style="width: 100%; padding: 8px; margin: 0; font-size: 14px;">
+                    Send Friend Request <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
             <div class="friend-list-header">
                 <span id="tab-friends" class="active" onclick="showFriendList('friends')">
-                    <i class="fas fa-user-friends"></i>Друзья (<span id="friends-count">0</span>)
+                    <i class="fas fa-user-friends"></i>Friends (<span id="friends-count">0</span>)
                 </span>
                 <span id="tab-requests" onclick="showFriendList('requests')">
-                    <i class="fas fa-bell"></i>Запросы (<span id="requests-count">0</span>)
+                    <i class="fas fa-bell"></i>Requests (<span id="requests-count">0</span>)
                 </span>
             </div>
 
@@ -28,25 +34,28 @@
             <div id="user-profile-bar" onclick="openSettingsModal()">
                 <img id="profile-avatar" class="avatar" src="/img/anon_blue.png" alt="Avatar">
                 <div style="margin-right: auto;">
-                    <strong id="profile-username">Загрузка...</strong>
+                    <strong id="profile-username">Loading...</strong>
                 </div>
                 <div class="status-indicator"></div>
             </div>
         </div>
 
         <div id="chat-area">
-            <header>
-                <span id="chat-header">Выберите друга для чата</span>
+            <header style="display: flex; align-items: center;">
+                 <button id="mobile-back-button" onclick="goBackToFriends()" style="display: none; background: none; border: none; color: var(--text-main); font-size: 1.2em; margin-right: 15px; cursor: pointer;">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <span id="chat-header">Select a friend to chat</span>
             </header>
             
             <div id="messages-container">
-                <p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Для начала, авторизуйтесь.</p>
+                <p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Please log in to continue.</p>
             </div>
 
             <form id="form">
                 <div id="form-inner">
-                    <input id="input" autocomplete="off" placeholder="Отправить сообщение..." disabled />
-                    <button>Отправить</button>
+                    <input id="input" autocomplete="off" placeholder="Send a message..." disabled />
+                    <button>Send</button>
                 </div>
             </form>
         </div>
@@ -55,36 +64,28 @@
     <div id="auth-modal" class="modal" style="display: block;">
         <div class="modal-content">
             <span class="close" onclick="closeModal('auth-modal')">&times;</span>
-            <h2 id="auth-title" style="text-align: center;">Вход</h2>
+            <h2 id="auth-title" style="text-align: center;">Login</h2>
             <p id="auth-error-message" style="color: var(--danger-color); text-align: center;"></p>
 
             <form id="auth-form" onsubmit="handleAuth(event)">
-                <input type="text" id="auth-username" class="modal-input" placeholder="Имя пользователя" required>
-                <input type="password" id="auth-password" class="modal-input" placeholder="Пароль" required>
+                <input type="text" id="auth-username" class="modal-input" placeholder="Username" required>
+                <input type="password" id="auth-password" class="modal-input" placeholder="Password" required>
                 
-                <div id="avatar-upload-container" style="display: none;">
-                    <label for="register-avatar-file" class="file-input-container">
-                        <i class="fas fa-camera"></i> Выберите аватар (PNG/JPG, макс 2MB)
-                    </label>
-                    <input type="file" id="register-avatar-file" accept="image/*" style="display: none;">
-                    <p id="file-name-display" style="font-size: 12px; color: var(--text-sub);"></p>
-                </div>
-
-                <button id="auth-button" class="modal-button">Войти</button>
+                <button id="auth-button" class="modal-button">Login</button>
             </form>
-            <div class="auth-switch" onclick="switchAuthMode()">Перейти к регистрации</div>
+            <div class="auth-switch" onclick="switchAuthMode()">Go to Registration</div>
         </div>
     </div>
 
     <div id="settings-modal" class="modal">
         <div class="modal-content">
             <div style="width: 200px; padding: 30px 0 30px 30px; background-color: var(--bg-tertiary);">
-                <h3 style="margin-top: 0; color: var(--text-main); font-weight: 700;">Настройки</h3>
+                <h3 style="margin-top: 0; color: var(--text-main); font-weight: 700;">Settings</h3>
                 <div id="settings-menu">
-                    <div class="setting-item active" data-content="my-account">Мой аккаунт</div>
-                    <div class="setting-item" data-content="appearance">Внешний вид</div>
-                    <div class="setting-item" data-content="admin-panel" style="display: none;">Админ-панель</div>
-                    <div class="setting-item logout-item" onclick="handleLogout()">Выйти</div>
+                    <div class="setting-item active" data-content="my-account">My Account</div>
+                    <div class="setting-item" data-content="appearance">Appearance</div>
+                    <div class="setting-item" data-content="admin-panel" style="display: none;">Admin Panel</div>
+                    <div class="setting-item logout-item" onclick="handleLogout()">Logout</div>
                 </div>
             </div>
 
@@ -92,54 +93,54 @@
                 <span class="close" onclick="closeModal('settings-modal')">&times;</span>
 
                 <div id="my-account-content" class="setting-page">
-                    <h2>Мой аккаунт</h2>
-                    <p style="color: var(--text-sub); margin-bottom: 25px;">Здесь вы можете изменить свое имя пользователя и аватар.</p>
+                    <h2>My Account</h2>
+                    <p style="color: var(--text-sub); margin-bottom: 25px;">Here you can change your username and avatar.</p>
                     
                     <form id="update-profile-form" onsubmit="handleProfileUpdate(event)">
-                        <label for="update-username" style="font-size: 13px; color: var(--text-sub); font-weight: 600;">Имя пользователя</label>
-                        <input type="text" id="update-username" class="modal-input" placeholder="Новое имя пользователя" style="width: 100%;" required>
+                        <label for="update-username" style="font-size: 13px; color: var(--text-sub); font-weight: 600;">Username</label>
+                        <input type="text" id="update-username" class="modal-input" placeholder="New username" style="width: 100%;" required>
                         
-                        <label for="update-avatar-file" style="font-size: 13px; color: var(--text-sub); font-weight: 600; margin-top: 15px; display: block;">Аватар</label>
+                        <label for="update-avatar-file" style="font-size: 13px; color: var(--text-sub); font-weight: 600; margin-top: 15px; display: block;">Avatar</label>
                         <label for="update-avatar-file" class="file-input-container">
-                            <i class="fas fa-camera"></i> Выберите новый аватар
+                            <i class="fas fa-camera"></i> Select new avatar
                         </label>
                         <input type="file" id="update-avatar-file" accept="image/*" style="display: none;">
                         <p id="update-file-name-display" style="font-size: 12px; color: var(--text-sub);"></p>
 
-                        <button type="submit" class="modal-button">Сохранить изменения</button>
+                        <button type="submit" class="modal-button">Save Changes</button>
                     </form>
 
-                    <h3 style="color: var(--danger-color); margin-top: 40px;">Опасная зона</h3>
-                    <button class="modal-button" style="background-color: var(--danger-color); width: auto;" onclick="confirmDeleteAccount()">Удалить аккаунт</button>
+                    <h3 style="color: var(--danger-color); margin-top: 40px;">Danger Zone</h3>
+                    <button class="modal-button" style="background-color: var(--danger-color); width: auto;" onclick="confirmDeleteAccount()">Delete Account</button>
                 </div>
 
                 <div id="appearance-content" class="setting-page" style="display: none;">
-                    <h2>Внешний вид</h2>
-                    <p style="color: var(--text-sub);">Выберите одну из доступных тем.</p>
+                    <h2>Appearance</h2>
+                    <p style="color: var(--text-sub);">Select one of the available themes.</p>
                     
                     <div style="display: flex; gap: 15px; margin-top: 20px;">
                         <div class="theme-option active-theme" data-theme="dark" onclick="setTheme('dark')">
                             <i class="fas fa-moon"></i>
-                            Тёмная
+                            Dark
                         </div>
                         <div class="theme-option" data-theme="light" onclick="setTheme('light')">
                             <i class="fas fa-sun"></i>
-                            Светлая
+                            Light
                         </div>
                         <div class="theme-option" data-theme="custom" onclick="setTheme('custom')">
                             <i class="fas fa-palette"></i>
-                            Синяя
+                            Blue
                         </div>
                     </div>
                 </div>
 
                 <div id="admin-panel-content" class="setting-page" style="display: none;">
-                    <h2>Админ-панель</h2>
-                    <p style="color: var(--text-sub);">Выполняйте административные команды.</p>
+                    <h2>Admin Panel</h2>
+                    <p style="color: var(--text-sub);">Execute administrative commands.</p>
                     <form id="admin-form" onsubmit="handleAdminCommand(event)">
-                        <label for="admin-command" style="font-size: 13px; color: var(--text-sub); font-weight: 600;">Команда (например, listusers, block testuser, announce Привет всем)</label>
-                        <input type="text" id="admin-command-input" class="modal-input" placeholder="Введите команду" style="width: 100%;" required>
-                        <button type="submit" class="modal-button" style="background-color: var(--danger-color);">Выполнить</button>
+                        <label for="admin-command" style="font-size: 13px; color: var(--text-sub); font-weight: 600;">Command (e.g., listusers, block testuser, announce Hello world)</label>
+                        <input type="text" id="admin-command-input" class="modal-input" placeholder="Enter command" style="width: 100%;" required>
+                        <button type="submit" class="modal-button" style="background-color: var(--danger-color);">Execute</button>
                     </form>
                     <pre id="admin-output" style="background-color: var(--input-bg); padding: 10px; border-radius: 4px; margin-top: 20px; color: var(--text-main); white-space: pre-wrap; font-size: 14px;"></pre>
                 </div>
@@ -165,6 +166,8 @@
         let currentFriends = {}; // { userId: { username, avatar, channelId } }
         let currentRequests = {}; // { userId: { username, avatar } }
         let currentToken = localStorage.getItem('jwtToken');
+        
+        const mobileMediaQuery = window.matchMedia('(max-width: 800px)');
 
         // --- Utility Functions ---
 
@@ -183,39 +186,37 @@
         function openModal(id) {
             document.getElementById(id).style.display = 'block';
         }
+        
+        function goBackToFriends() {
+             document.getElementById('app-container').classList.remove('show-chat');
+             document.getElementById('mobile-back-button').style.display = 'none';
+        }
 
         // --- Authentication & Initialization ---
 
         function switchAuthMode() {
             authMode = authMode === 'login' ? 'register' : 'login';
-            document.getElementById('auth-title').textContent = authMode === 'login' ? 'Вход' : 'Регистрация';
-            document.getElementById('auth-button').textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться';
-            document.querySelector('.auth-switch').textContent = authMode === 'login' ? 'Перейти к регистрации' : 'Перейти к входу';
-            document.getElementById('avatar-upload-container').style.display = authMode === 'register' ? 'block' : 'none';
-            document.getElementById('file-name-display').textContent = '';
+            document.getElementById('auth-title').textContent = authMode === 'login' ? 'Login' : 'Register';
+            document.getElementById('auth-button').textContent = authMode === 'login' ? 'Login' : 'Register';
+            document.querySelector('.auth-switch').textContent = authMode === 'login' ? 'Go to Registration' : 'Go to Login';
         }
 
         async function handleAuth(event) {
             event.preventDefault();
             const username = document.getElementById('auth-username').value;
             const password = document.getElementById('auth-password').value;
-            const fileInput = document.getElementById('register-avatar-file');
             const errorMessage = document.getElementById('auth-error-message');
             errorMessage.textContent = '';
             
-            const formData = new FormData();
-            formData.append('username', username);
-            formData.append('password', password);
-            if (authMode === 'register' && fileInput.files[0]) {
-                formData.append('avatar', fileInput.files[0]);
-            }
+            // Using JSON for both login and simplified registration (no file upload)
+            const body = { username, password };
 
             try {
                 const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    body: authMode === 'login' ? JSON.stringify({ username, password }) : formData,
-                    headers: authMode === 'login' ? { 'Content-Type': 'application/json' } : {}
+                    body: JSON.stringify(body),
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 const data = await response.json();
@@ -227,14 +228,14 @@
                         initializeUI(data);
                         closeModal('auth-modal');
                     } else {
-                        errorMessage.textContent = 'Регистрация успешна! Теперь войдите.';
+                        errorMessage.textContent = 'Registration successful! Please log in.';
                         switchAuthMode();
                     }
                 } else {
-                    errorMessage.textContent = data.message || `Ошибка ${authMode}.`;
+                    errorMessage.textContent = data.message || `Error during ${authMode}.`;
                 }
             } catch (error) {
-                errorMessage.textContent = `Ошибка сети: ${error.message}`;
+                errorMessage.textContent = `Network error: ${error.message}`;
             }
         }
 
@@ -252,6 +253,7 @@
             document.querySelector('[data-content="admin-panel"]').style.display = currentUserIsAdmin ? 'block' : 'none';
 
             connectSocket();
+            updateMobileUI(); // Set initial state for mobile view
         }
 
         function handleLogout() {
@@ -259,6 +261,22 @@
             currentToken = null;
             location.reload(); 
         }
+        
+        function updateMobileUI() {
+             // Check if mobile view is active
+             const isMobile = mobileMediaQuery.matches;
+             
+             // Show/hide back button based on whether chat is visible in mobile view
+             const isChatVisible = document.getElementById('app-container').classList.contains('show-chat');
+             if (isMobile) {
+                 document.getElementById('mobile-back-button').style.display = isChatVisible ? 'inline-block' : 'none';
+             } else {
+                 document.getElementById('mobile-back-button').style.display = 'none';
+             }
+        }
+        
+        mobileMediaQuery.addListener(updateMobileUI);
+
 
         // --- Chat and Socket Logic ---
 
@@ -275,7 +293,7 @@
             const isAnnouncement = msg.username === 'SYSTEM ANNOUNCEMENT';
             const usernameStyle = isAnnouncement ? 'color: var(--danger-color); font-weight: bold;' : '';
             
-            header.innerHTML = `<strong style="${usernameStyle}">${msg.username}</strong> <span class="timestamp">${new Date(msg.timestamp).toLocaleTimeString('ru-RU')}</span>`;
+            header.innerHTML = `<strong style="${usernameStyle}">${msg.username}</strong> <span class="timestamp">${new Date(msg.timestamp).toLocaleTimeString('en-US')}</span>`;
             contentDiv.appendChild(header);
             
             const text = createElement('p', '', msg.content);
@@ -311,7 +329,6 @@
                 
                 activeChat.id = data.activeChatId;
                 if (activeChat.id !== 0) {
-                     // Determine friendId based on channel members (for DM)
                      const friendKeys = Object.keys(currentFriends);
                      for (let friendId of friendKeys) {
                          if (currentFriends[friendId].channelId === activeChat.id) {
@@ -321,26 +338,22 @@
                          }
                      }
                 } else {
-                    chatHeader.textContent = `Выберите друга для чата`;
+                    chatHeader.textContent = `Select a friend to chat`;
                 }
                 
-                // Обновляем UI на основе текущей активной вкладки
                 const activeTab = document.querySelector('.friend-list-header span.active').id.replace('tab-', '');
                 updateFriendListUI(activeTab);
             });
             
-            // НОВЫЙ ОБРАБОТЧИК ДЛЯ ТОЧЕЧНОГО ОБНОВЛЕНИЯ ДРУЗЕЙ
             socket.on('friendAdded', (friendData) => {
                  currentFriends[friendData.userId] = friendData;
                  
-                 // Если текущая вкладка - друзья, обновим UI
                  if (document.getElementById('tab-friends').classList.contains('active')) {
                      updateFriendListUI('friends');
                  } else {
                      document.getElementById('friends-count').textContent = Object.keys(currentFriends).length;
                  }
                  
-                 // Если это первое добавление друга, и чат пуст, присоединяемся к новому чату
                  if (activeChat.id === 0) {
                      joinChat(friendData.channelId, friendData.userId, friendData.username);
                  }
@@ -355,19 +368,18 @@
             socket.on('messageHistory', (history) => {
                 messagesContainer.innerHTML = ''; 
                 if (history.length === 0) {
-                     messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Начните разговор!</p>`;
+                     messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Start the conversation!</p>`;
                 }
                 history.forEach(msg => displayMessage(msg, true)); 
                 scrollToBottom(); 
             });
 
             socket.on('systemAnnouncement', (msg) => {
-                // Display system message globally
                 displayMessage(msg); 
             });
 
             socket.on('requestError', (message) => {
-                alert(`Ошибка: ${message}`);
+                alert(`Error: ${message}`);
             });
             
             socket.on('requestSuccess', (message) => {
@@ -380,24 +392,23 @@
             
             socket.on('friendRequestReceived', (request) => {
                 currentRequests[request.userId] = request;
-                // Обновляем список запросов, если на вкладке "Запросы", или только счетчик
                  if (document.getElementById('tab-requests').classList.contains('active')) {
                      updateFriendListUI('requests');
                  } else {
                      document.getElementById('requests-count').textContent = Object.keys(currentRequests).length;
                  }
-                alert(`Новый запрос в друзья от ${request.username}!`);
+                alert(`New friend request from ${request.username}!`);
             });
             
             socket.on('accountDeleted', () => {
-                 alert('Ваш аккаунт был удален.');
+                 alert('Your account has been deleted.');
                  handleLogout();
             });
 
             socket.on('disconnect', () => {
                 console.log('Socket disconnected.');
                 if (currentToken) {
-                    messagesContainer.innerHTML = `<p style="text-align: center; color: var(--danger-color); margin-top: 50px;">Соединение потеряно. Переподключение...</p>`;
+                    messagesContainer.innerHTML = `<p style="text-align: center; color: var(--danger-color); margin-top: 50px;">Connection lost. Reconnecting...</p>`;
                 }
             });
         }
@@ -411,6 +422,17 @@
             updateFriendListUI(tab);
         }
 
+        function sendFriendRequestUI() {
+            const recipientUsername = document.getElementById('add-friend-input').value.trim();
+            if (!recipientUsername) {
+                alert('Enter a username!');
+                return;
+            }
+            
+            socket.emit('sendFriendRequest', recipientUsername);
+            document.getElementById('add-friend-input').value = ''; 
+        }
+
         function updateFriendListUI(tab) {
             dmSection.innerHTML = '';
             document.getElementById('friends-count').textContent = Object.keys(currentFriends).length;
@@ -419,7 +441,7 @@
             if (tab === 'friends') {
                 const friendsArray = Object.values(currentFriends);
                 if (friendsArray.length === 0) {
-                    dmSection.innerHTML = `<p style="color: var(--text-sub); text-align: center; margin-top: 20px;">Нет друзей. Отправьте запрос!</p>`;
+                    dmSection.innerHTML = `<p style="color: var(--text-sub); text-align: center; margin-top: 20px;">No friends. Send a request!</p>`;
                 } else {
                     friendsArray.forEach(friend => {
                         const item = createElement('div', 'friend-item');
@@ -439,7 +461,7 @@
             } else if (tab === 'requests') {
                 const requestsArray = Object.values(currentRequests);
                 if (requestsArray.length === 0) {
-                    dmSection.innerHTML = `<p style="color: var(--text-sub); text-align: center; margin-top: 20px;">Нет входящих запросов.</p>`;
+                    dmSection.innerHTML = `<p style="color: var(--text-sub); text-align: center; margin-top: 20px;">No incoming requests.</p>`;
                 } else {
                     requestsArray.forEach(request => {
                         const item = createElement('div', 'friend-item');
@@ -447,8 +469,8 @@
                         item.innerHTML = `
                             <img class="avatar" src="${request.avatar}" alt="Avatar">
                             <span style="flex-grow: 1;">${request.username}</span>
-                            <button onclick="handleFriendRequest(${request.userId}, 'accept', event)" style="margin-left: 10px; background: var(--online-color); color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-check"></i></button>
-                            <button onclick="handleFriendRequest(${request.userId}, 'reject', event)" style="margin-left: 5px; background: var(--danger-color); color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-times"></i></button>
+                            <button onclick="handleFriendRequest(${request.userId}, 'accept', event)" style="margin-left: 10px; background: var(--online-color); color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-check"></i> Accept</button>
+                            <button onclick="handleFriendRequest(${request.userId}, 'reject', event)" style="margin-left: 5px; background: var(--danger-color); color: white; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer;"><i class="fas fa-times"></i> Reject</button>
                         `;
                         dmSection.appendChild(item);
                     });
@@ -469,13 +491,18 @@
             activeChat.friendId = friendId;
             
             socket.emit('joinChat', { newId: channelId, isDM: true });
+            
+            // --- Mobile adaptation: Show chat ---
+            if (mobileMediaQuery.matches) {
+                document.getElementById('app-container').classList.add('show-chat');
+                document.getElementById('mobile-back-button').style.display = 'inline-block';
+            }
         }
         
         function handleFriendRequest(userId, action, event) {
-            event.stopPropagation(); // Prevent item click (joinChat)
+            event.stopPropagation(); 
             socket.emit('handleFriendRequest', { userId: userId, action: action });
             
-            // Обновляем локальный список запросов сразу для быстрого UX
             delete currentRequests[userId];
             updateFriendListUI('requests');
         }
@@ -488,13 +515,13 @@
             
             if (!content) return;
             if (activeChat.id === 0) {
-                alert('Выберите друга для отправки сообщения!');
+                alert('Select a friend to send a message!');
                 return;
             }
             
             // Check for admin command prefix
             if (content.toLowerCase().startsWith('/admin ') && currentUserIsAdmin) {
-                 const command = content.substring(7); // Remove "/admin "
+                 const command = content.substring(7); 
                  const parts = command.split(' ');
                  const cmd = parts[0].toLowerCase();
                  let targetUsername = null;
@@ -508,7 +535,6 @@
                  
                  socket.emit('adminCommand', { command: cmd, targetUsername: targetUsername, message: message });
             } else {
-                 // Regular message
                  socket.emit('chat message', { content: content });
             }
             
@@ -520,11 +546,9 @@
         function openSettingsModal() {
             openModal('settings-modal');
             
-            // Set current values in the update form
             document.getElementById('update-username').value = currentUsername;
-            document.getElementById('update-file-name-display').textContent = 'Текущий аватар: не меняется';
+            document.getElementById('update-file-name-display').textContent = 'Current avatar: unchanged';
 
-            // Show default tab
             document.querySelector('.setting-item[data-content="my-account"]').click();
         }
 
@@ -565,20 +589,19 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('Профиль обновлен! ' + (data.message || ''));
-                    // Re-authenticate to update token and refresh UI with new data
+                    alert('Profile updated! ' + (data.message || ''));
                     socket.emit('authenticate', currentToken);
                     closeModal('settings-modal');
                 } else {
-                    alert('Ошибка обновления профиля: ' + (data.message || response.statusText));
+                    alert('Profile update error: ' + (data.message || response.statusText));
                 }
             } catch (error) {
-                alert(`Ошибка сети: ${error.message}`);
+                alert(`Network error: ${error.message}`);
             }
         }
         
         function confirmDeleteAccount() {
-             if (confirm("Вы уверены, что хотите удалить свой аккаунт? Это действие необратимо!")) {
+             if (confirm("Are you sure you want to delete your account? This action is irreversible!")) {
                  deleteAccount();
              }
         }
@@ -593,13 +616,13 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                     alert('Аккаунт успешно удален.');
+                     alert('Account successfully deleted.');
                      handleLogout();
                 } else {
-                     alert('Ошибка удаления аккаунта: ' + (data.message || response.statusText));
+                     alert('Account deletion error: ' + (data.message || response.statusText));
                 }
              } catch (error) {
-                 alert(`Ошибка сети: ${error.message}`);
+                 alert(`Network error: ${error.message}`);
              }
         }
         
@@ -615,11 +638,8 @@
         setTheme(storedTheme);
         
         // File name display update
-        document.getElementById('register-avatar-file').addEventListener('change', function() {
-            document.getElementById('file-name-display').textContent = this.files.length ? this.files[0].name : '';
-        });
         document.getElementById('update-avatar-file').addEventListener('change', function() {
-            document.getElementById('update-file-name-display').textContent = this.files.length ? this.files[0].name : 'Текущий аватар: не меняется';
+            document.getElementById('update-file-name-display').textContent = this.files.length ? this.files[0].name : 'Current avatar: unchanged';
         });
 
         // Initial check for token
@@ -627,10 +647,11 @@
              document.getElementById('auth-modal').style.display = 'none';
              connectSocket();
         } else {
-             openModal('auth-modal');
+             // If no token, the modal remains visible (it has display: block in HTML by default)
+             connectSocket(); // Attempt connection anyway for initial auth setup
         }
 
-        // Global modal closing
+        // Global modal closing: Close modal if background is clicked
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = "none";
@@ -647,7 +668,6 @@
             let message = '';
             
             if (cmd === 'announce') {
-                 // Extract message after "announce"
                  message = fullCommand.substring(fullCommand.toLowerCase().indexOf('announce') + 'announce'.length).trim();
             }
             

@@ -3,9 +3,9 @@ const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
 const jwt = require('jsonwebtoken');
-const multer = require('multer');
+const multer = require('multer'); 
 const path = require('path');
-const fs = require('fs').promises; // Используем fs.promises для асинхронных операций с файлами
+const fs = require('fs').promises;
 
 const app = express();
 const server = http.createServer(app);
@@ -13,9 +13,9 @@ const io = socketio(server);
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'fdsfjsdklk$!#JH$@KLHJ$LASKDASJKFHdsnmfk';
-const DATA_FILE = path.join(__dirname, 'data.json'); // Путь к файлу сохранения
+const DATA_FILE = path.join(__dirname, 'data.json');
 
-// --- In-Memory Database Simulation (Будет перезаписана из файла) ---
+// --- In-Memory Database Simulation ---
 let users = []; 
 let channels = []; 
 let friendRequests = {}; 
@@ -24,7 +24,7 @@ let userDMChannels = {};
 
 let channelIdCounter = 1001; 
 let messageIdCounter = 1;
-let userIdCounter = 103;
+let userIdCounter = 2; // Default starting ID for new users
 
 let connectedUsers = {}; 
 
@@ -44,20 +44,17 @@ async function loadData() {
 
         channelIdCounter = savedData.channelIdCounter || 1001;
         messageIdCounter = savedData.messageIdCounter || 1;
-        userIdCounter = savedData.userIdCounter || 103;
-
-        // Если данные пустые (первый запуск), инициализируем дефолтные
-        if (users.length === 0) {
-             users = [
-                { id: 100, username: 'Today_Idk', password: 'adminpassword', avatar: '/img/anon_red.png', isAdmin: true, isBlocked: false }, 
-                { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png', isAdmin: false, isBlocked: false },
-                { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png', isAdmin: false, isBlocked: false }
-            ];
-            friends = { 101: [102], 102: [101] };
-            userIdCounter = 103;
+        
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Гарантируем, что userIdCounter всегда больше максимального ID
+        if (users.length > 0) {
+            const maxId = users.reduce((max, user) => Math.max(max, user.id), 0);
+            // Убедимся, что счетчик начинается с 103, если нет пользователей, или с maxId + 1
+            userIdCounter = Math.max(maxId + 1, 103);
+        } else {
+             userIdCounter = 103;
         }
 
-        console.log('✅ Data loaded successfully.');
+        console.log('✅ Data loaded successfully. Next User ID:', userIdCounter);
     } catch (error) {
         if (error.code === 'ENOENT' || error.name === 'SyntaxError') {
             console.log('⚠️ data.json not found or corrupted, initializing default data.');
@@ -68,6 +65,8 @@ async function loadData() {
             ];
             friends = { 101: [102], 102: [101] };
             userIdCounter = 103;
+            channelIdCounter = 1001;
+            messageIdCounter = 1;
             await saveData();
         } else {
             console.error('❌ Error loading data:', error);
@@ -103,7 +102,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname))); 
 
-// Multer setup
+// Multer setup (Kept for profile update only)
 const storage = multer.diskStorage({
     destination: (req, file, cb) => { cb(null, UPLOAD_DIR); },
     filename: (req, file, cb) => {
@@ -185,42 +184,29 @@ function broadcastAnnouncement(message) {
     console.log(`[ADMIN] Announcement: ${message}`);
 }
 
-// --- API Endpoints (Остаются без изменений) ---
+// --- API Endpoints ---
 
 /** POST /api/register - Register a new user. */
-app.post('/api/register', (req, res, next) => {
-    upload.single('avatar')(req, res, async (err) => {
-        if (err) return res.status(400).json({ message: err.message });
-        
-        const { username, password } = req.body;
-        if (!username || !password) return res.status(400).json({ message: 'Username and password are required' });
-        if (getUserByUsername(username)) return res.status(400).json({ message: 'Username is already taken' });
+app.post('/api/register', async (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) return res.status(400).json({ message: 'Username and password are required' });
+    if (getUserByUsername(username)) return res.status(400).json({ message: 'Username is already taken' });
 
-        const newUserId = userIdCounter++;
-        const newUser = {
-            id: newUserId,
-            username: username,
-            password: password, 
-            avatar: '/img/anon_blue.png',
-            isAdmin: false,
-            isBlocked: false
-        };
-        
-        if (req.file) {
-            const oldPath = req.file.path;
-            const newFilename = `${newUserId}_${Date.now()}${path.extname(req.file.originalname)}`;
-            const newPath = path.join(UPLOAD_DIR, newFilename);
-            try {
-                await fs.rename(oldPath, newPath);
-                newUser.avatar = `/uploads/${newFilename}`;
-            } catch (err) { console.error('Error renaming file during registration:', err); }
-        }
+    const newUserId = userIdCounter++;
+    const newUser = {
+        id: newUserId,
+        username: username,
+        password: password, 
+        avatar: '/img/anon_blue.png', // Default avatar
+        isAdmin: false,
+        isBlocked: false
+    };
 
-        users.push(newUser);
-        await saveData(); 
+    users.push(newUser);
+    await saveData(); 
 
-        res.status(201).json({ message: 'User successfully registered.' });
-    });
+    res.status(201).json({ message: 'User successfully registered.' });
 });
 
 
@@ -233,6 +219,7 @@ app.post('/api/login', (req, res) => {
     if (user.isBlocked) return res.status(403).json({ message: 'Your account has been blocked by an administrator.' });
 
     const token = generateToken(user);
+    // Убедимся, что friends[user.id] не равно null/undefined перед итерацией
     (friends[user.id] || []).forEach(friendId => { createDMChannel(user.id, friendId); });
 
     res.json({ token, userId: user.id, username: user.username, avatar: user.avatar, isAdmin: user.isAdmin || false });
@@ -280,6 +267,12 @@ app.post('/api/update-profile', verifyToken, upload.single('avatar'), async (req
 
     if (changesMade) {
         await saveData();
+        // ВАЖНО: При обновлении имени или аватара нужно обновить сокет
+        if (connectedUsers[userId]) {
+             // Сообщаем клиенту об изменении, чтобы он мог обновить UI (обычно это делает перезагрузка)
+             connectedUsers[userId].emit('profileUpdated', { username: user.username, avatar: user.avatar });
+        }
+
         return res.json({ message: 'Profile successfully updated.', username: user.username, avatar: user.avatar });
     }
 
@@ -303,10 +296,15 @@ app.post('/api/delete-account', verifyToken, async (req, res) => {
     users.splice(userIndex, 1);
 
     delete friends[userId];
-    Object.keys(friends).forEach(id => { friends[id] = friends[id].filter(friendId => friendId !== userId); });
-    Object.keys(friendRequests).forEach(id => { delete friendRequests[id][userId]; if (friendRequests[userId]) delete friendRequests[userId][id]; });
+    Object.keys(friends).forEach(id => { friends[id] = (friends[id] || []).filter(friendId => friendId !== userId); });
+    Object.keys(friendRequests).forEach(id => { 
+        if (friendRequests[id]) delete friendRequests[id][userId]; 
+        if (friendRequests[userId]) delete friendRequests[userId][id]; 
+    });
     delete userDMChannels[userId];
-    Object.keys(userDMChannels).forEach(id => { delete userDMChannels[id][userId]; });
+    Object.keys(userDMChannels).forEach(id => { 
+        if(userDMChannels[id]) delete userDMChannels[id][userId]; 
+    });
 
     if (connectedUsers[userId]) {
         connectedUsers[userId].emit('accountDeleted');
@@ -320,10 +318,11 @@ app.post('/api/delete-account', verifyToken, async (req, res) => {
 });
 
 
-// --- Socket.io Handlers: Real-time Communication (С ИСПРАВЛЕННОЙ ЛОГИКОЙ ДРУЗЕЙ) ---
+// --- Socket.io Handlers: Real-time Communication ---
 io.on('connection', (socket) => {
     let currentUser = null;
     let currentChatId = 0; 
+    let authenticated = false; // Флаг для отслеживания аутентификации
 
     socket.on('authenticate', (token) => {
         try {
@@ -332,8 +331,16 @@ io.on('connection', (socket) => {
             
             if (user && !user.isBlocked) {
                 currentUser = user;
+                authenticated = true; // Устанавливаем флаг
                 socket.join(`user_${currentUser.id}`);
+                
+                // Disconnect previous socket if user reconnects
+                if (connectedUsers[currentUser.id] && connectedUsers[currentUser.id].id !== socket.id) {
+                     connectedUsers[currentUser.id].disconnect(true);
+                     console.log(`[Socket] Disconnected previous socket for user ${currentUser.username}`);
+                }
                 connectedUsers[currentUser.id] = socket;
+                console.log(`[Socket] User ${currentUser.username} (${currentUser.id}) connected.`);
                 
                 const userFriends = (friends[currentUser.id] || []).map(friendId => {
                     const friend = getUserById(friendId);
@@ -352,6 +359,7 @@ io.on('connection', (socket) => {
                     return { userId: requester.id, username: requester.username, avatar: requester.avatar };
                 }).filter(r => r !== null);
                 
+                // Выбираем первый DM-канал, если он есть
                 if (currentChatId === 0 && userFriends.length > 0) { currentChatId = userFriends[0].channelId; }
                 
                 if (currentChatId !== 0) {
@@ -373,6 +381,7 @@ io.on('connection', (socket) => {
                 socket.disconnect();
             }
         } catch (e) {
+            console.error('Authentication failed:', e.message);
             socket.emit('requestError', 'Invalid token.'); 
             socket.disconnect();
         }
@@ -413,7 +422,7 @@ io.on('connection', (socket) => {
         io.to(`channel_${currentChatId}`).emit('newMessage', message);
     });
 
-    // --- Friend Request Handlers ---
+    // --- Friend Request Handlers (Unchanged logic) ---
 
     socket.on('sendFriendRequest', async (recipientUsername) => {
         if (!currentUser) return;
@@ -430,8 +439,8 @@ io.on('connection', (socket) => {
         
         if (friendRequests[recipient.id][currentUser.id] === 'pending') {
             // Auto-Accept Logic
-            const senderId = recipient.id; // Тот, кто прислал запрос первым
-            const recipientId = currentUser.id; // Тот, кто сейчас принимает (отправляет ответный)
+            const senderId = recipient.id; 
+            const recipientId = currentUser.id; 
             
             friends[senderId] = friends[senderId] || [];
             friends[recipientId] = friends[recipientId] || [];
@@ -444,7 +453,7 @@ io.on('connection', (socket) => {
             
             await saveData(); 
 
-            const newFriendDataRecipient = { // Данные для текущего пользователя (он получает друга-отправителя)
+            const newFriendDataRecipient = { 
                 userId: senderId, 
                 username: recipient.username, 
                 avatar: recipient.avatar, 
@@ -454,7 +463,7 @@ io.on('connection', (socket) => {
             socket.emit('requestSuccess', `${recipient.username} already sent you a request. Automatically accepted!`);
             socket.emit('friendAdded', newFriendDataRecipient); 
 
-            if (connectedUsers[senderId]) { // Отправляем отправителю, что его запрос принят
+            if (connectedUsers[senderId]) { 
                 const newFriendDataSender = {
                     userId: recipientId,
                     username: currentUser.username,
@@ -469,7 +478,6 @@ io.on('connection', (socket) => {
         friendRequests[currentUser.id][recipient.id] = 'pending';
         await saveData(); 
         
-        // Отправляем успех, но не alert, как просили
         socket.emit('requestSuccess', `Friend request sent to ${recipient.username}.`); 
 
         if (connectedUsers[recipient.id]) {
@@ -503,7 +511,7 @@ io.on('connection', (socket) => {
             
             await saveData(); 
 
-            // 1. Отправляем отправителю, что он теперь друг
+            // 1. Notify sender
             const senderFriendData = { 
                 userId: recipientId, 
                 username: currentUser.username, 
@@ -514,7 +522,7 @@ io.on('connection', (socket) => {
                  connectedUsers[senderId].emit('friendAdded', senderFriendData); 
             }
             
-            // 2. Отправляем текущему пользователю (получателю запроса) данные нового друга
+            // 2. Notify recipient (current user)
             const recipientFriendData = {
                 userId: senderId,
                 username: sender.username,
@@ -528,17 +536,16 @@ io.on('connection', (socket) => {
             delete friendRequests[senderId][recipientId];
             await saveData(); 
             socket.emit('requestSuccess', `Request from ${sender.username} rejected.`);
-            // Не нужно отправлять 'friendAdded', просто локально обновится requests-список
         }
     });
     
-    // --- АДМИН-ЛОГИКА (Остается без изменений) ---
-    socket.on('adminCommand', async ({ command, targetUsername, message }) => {
+    // --- ADMIN LOGIC (Corrected command parsing) ---
+    socket.on('adminCommand', async ({ command, targetUsername, message: messageBody }) => {
         if (!currentUser || !currentUser.isAdmin) { return socket.emit('requestError', 'Access denied. You are not an administrator.'); }
 
-        const parts = command.trim().toLowerCase().split(' ');
-        const cmd = parts[0];
+        const cmd = command.trim().toLowerCase();
         let targetUser = targetUsername ? getUserByUsername(targetUsername) : null;
+        let message = messageBody; // Используем переданный messageBody
 
         switch (cmd) {
             case 'listusers':
@@ -582,8 +589,13 @@ io.on('connection', (socket) => {
 
     // --- Disconnect ---
     socket.on('disconnect', () => {
-        if (currentUser && connectedUsers[currentUser.id]) {
-            delete connectedUsers[currentUser.id];
+        if (currentUser && authenticated) {
+            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Удаляем сокет из connectedUsers, только если это текущий активный сокет для этого пользователя.
+            // Это решает проблему, когда старый сокет дисконнектится после переподключения.
+            if (connectedUsers[currentUser.id] && connectedUsers[currentUser.id].id === socket.id) {
+                delete connectedUsers[currentUser.id];
+                console.log(`[Socket] User ${currentUser.username} (${currentUser.id}) disconnected.`);
+            }
         }
     });
 });

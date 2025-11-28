@@ -51,6 +51,7 @@
 }
 
 
+
 /* ----------------------------------- */
 /* 2. BASE STYLES AND LAYOUT           */
 /* ----------------------------------- */
@@ -458,4 +459,35 @@ body {
     margin-bottom: 5px;
     font-size: 1.5em;
     color: var(--brand-color);
+}
+
+/* ----------------------------------- */
+/* 6. MOBILE RESPONSIVENESS            */
+/* ----------------------------------- */
+
+@media (max-width: 800px) {
+    #app-container { 
+        grid-template-columns: 1fr; /* Single column layout */
+    }
+
+    /* Hide chat by default, show friend panel */
+    #chat-area {
+        display: none; 
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: 10;
+        top: 0;
+        left: 0;
+    }
+    
+    /* Class to show chat when active */
+    #app-container.show-chat #chat-area {
+        display: flex;
+    }
+    
+    /* Hide friend panel when chat is shown */
+    #app-container.show-chat #friends-channels-panel {
+        display: none;
+    }
 }

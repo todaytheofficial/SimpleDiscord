@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "Today_Idk",
+      "password": "ThePasswordToday_Idk_$#@*$&@#)SADFjksad*&@#&$DSFKJ&@#*(FCSDFK@#F",
+      "avatar": "/uploads/avatar-1764326258373-443137833.jpg",
+      "isAdmin": true,
+      "isBlocked": false
+    }
+  ],
+  "channels": [],
+  "friendRequests": {},
+  "friends": {
+  },
+  "userDMChannels": {},
+  "channelIdCounter": 1001,
+  "messageIdCounter": 1,
+  "userIdCounter": 2
+}
