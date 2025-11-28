@@ -509,47 +509,75 @@
             
             // --- AUTH/APP INIT ---
             authSwitchText.addEventListener('click', toggleAuthMode);
-            
-            authForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const endpoint = isRegisterMode ? '/api/register' : '/api/login';
-                
-                try {
-                    const response = await fetch(API_URL + endpoint, {
-                        method: 'POST',
-                        body: new FormData(authForm),
-                        headers: isRegisterMode ? {} : { 'Content-Type': 'application/json' }
-                    });
-                    const data = await response.json();
-                    
-                    if (response.ok && !isRegisterMode) {
-                        token = data.token;
-                        currentUserId = data.userId;
-                        currentUsername = data.username;
-                        currentAvatar = data.avatar;
+            // index.html - Inside initializeListeners() function
 
-                        localStorage.setItem('token', token);
-                        localStorage.setItem('userId', currentUserId);
-                        localStorage.setItem('username', currentUsername);
-                        localStorage.setItem('avatar', currentAvatar);
-                        
-                        authScreen.style.display = 'none';
-                        appContainer.style.display = 'grid';
-                        updateGUI();
-                        connectSocket(); 
-                    } else if (response.ok && isRegisterMode) {
-                        document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
-                        document.getElementById('auth-message').style.color = 'var(--online-color)';
-                        toggleAuthMode();
-                    } else {
-                        document.getElementById('auth-message').textContent = data.message || 'Error. Please try again.';
-                        document.getElementById('auth-message').style.color = 'var(--danger-color)';
-                    }
-                } catch (error) {
-                    document.getElementById('auth-message').textContent = 'Network or server error.';
-                    document.getElementById('auth-message').style.color = 'var(--danger-color)';
-                }
-            });
+authForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // 1. Determine endpoint and prepare request options
+    const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+    let requestOptions = { 
+        method: 'POST' 
+    };
+    
+    // 2. Separate logic for Register (multipart/form-data) and Login (JSON)
+    if (isRegisterMode) {
+        // --- РЕГИСТРАЦИЯ (ФАЙЛЫ + ДАННЫЕ) ---
+        // Используем FormData для отправки файлов и полей.
+        // Браузер сам устанавливает заголовок Content-Type: multipart/form-data.
+        requestOptions.body = new FormData(authForm);
+        
+    } else {
+        // --- ВХОД (ТОЛЬКО JSON) ---
+        // Устанавливаем заголовок Content-Type: application/json.
+        requestOptions.headers = { 'Content-Type': 'application/json' }; 
+        
+        // Отправляем данные в виде JSON-строки
+        requestOptions.body = JSON.stringify({
+            username: document.getElementById('auth-username').value,
+            password: document.getElementById('auth-password').value
+        });
+    }
+
+    // 3. Send Request and Handle Response
+    try {
+        const response = await fetch(API_URL + endpoint, requestOptions);
+        const data = await response.json();
+        
+        const authMessageEl = document.getElementById('auth-message');
+        
+        if (response.ok && !isRegisterMode) {
+            // УСПЕШНЫЙ ВХОД
+            token = data.token;
+            currentUserId = data.userId;
+            currentUsername = data.username;
+            currentAvatar = data.avatar;
+
+            localStorage.setItem('token', token);
+            localStorage.setItem('userId', currentUserId);
+            localStorage.setItem('username', currentUsername);
+            localStorage.setItem('avatar', currentAvatar);
+            
+            authScreen.style.display = 'none';
+            appContainer.style.display = 'grid';
+            updateGUI();
+            connectSocket(); 
+        } else if (response.ok && isRegisterMode) {
+            // УСПЕШНАЯ РЕГИСТРАЦИЯ
+            authMessageEl.textContent = 'Регистрация прошла успешно! Пожалуйста, войдите.';
+            authMessageEl.style.color = 'var(--online-color)';
+            toggleAuthMode();
+        } else {
+            // ОШИБКА АУТЕНТИФИКАЦИИ
+            authMessageEl.textContent = data.message || 'Ошибка. Повторите попытку.';
+            authMessageEl.style.color = 'var(--danger-color)';
+        }
+    } catch (error) {
+        // ОШИБКА СЕТИ/СЕРВЕРА
+        document.getElementById('auth-message').textContent = 'Сетевая или серверная ошибка.';
+        document.getElementById('auth-message').style.color = 'var(--danger-color)';
+    }
+});
 
             // Start chat form listener
             messageForm.addEventListener('submit', function(e) {

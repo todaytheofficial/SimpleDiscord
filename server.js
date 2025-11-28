@@ -12,12 +12,9 @@ const server = http.createServer(app);
 const io = socketio(server);
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'SDAF@KL#$KLJ#@%(*$@%(@#$JNFDSJKRF@#*$@#&*$FDSFDS'; // CHANGE THIS IN PRODUCTION!
+const JWT_SECRET = 'fdsfjsdklk$!#JH$@KLHJ$LASKDASJKFHdsnmfk'; // !!! CHANGE THIS IN PRODUCTION !!!
 
 // --- Middleware and Setup ---
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname))); 
 
 // Create folders for uploads and default images
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
@@ -27,13 +24,19 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 // Serve uploaded files from /uploads route
 app.use('/uploads', express.static(UPLOAD_DIR));
 
+// 1. JSON Middleware: Must be before any routes that expect JSON (like /api/login)
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname))); 
+
 // Multer storage configuration for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
-        const userId = req.user ? req.user.userId : 'temp'; 
+        // Use user ID or a temp ID if not authenticated yet (for registration)
+        const userId = req.user ? req.user.userId : 'temp_reg'; 
         cb(null, `${userId}_${Date.now()}${path.extname(file.originalname)}`);
     }
 });
@@ -50,9 +53,9 @@ const upload = multer({
 }); 
 
 // --- In-Memory Database Simulation ---
+// Initial data for testing
 let users = [
-    { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png' },
-    { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png' }
+    { id: 1, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png' }
 ];
 let channels = []; 
 let channelIdCounter = 1001; 
@@ -61,8 +64,7 @@ let messageIdCounter = 1;
 let friendRequests = {}; 
 
 let friends = {
-    101: [102], 
-    102: [101]  
+
 };
 
 let userDMChannels = {}; 
@@ -100,6 +102,7 @@ function getChannelById(id) {
     return channels.find(c => c.id === id);
 }
 
+// Function to create or retrieve a DM channel ID
 function createDMChannel(user1Id, user2Id) {
     const existingDmId = userDMChannels[user1Id]?.[user2Id] || userDMChannels[user2Id]?.[user1Id];
     if (existingDmId) {
@@ -117,34 +120,46 @@ function createDMChannel(user1Id, user2Id) {
     };
     channels.push(channel);
 
-    userDMChannels[user1Id] = userDMChannels[user1Id] || {};
-    userDMChannels[user2Id] = userDMChannels[user2Id] || {};
-    userDMChannels[user1Id][user2Id] = channel.id;
-    userDMChannels[user2Id][user1Id] = channel.id;
-
     return channel;
 }
 
 
 // --- API Endpoints: Auth, Profile, and Settings ---
 
-/** POST /api/register - Register a new user. */
+/** POST /api/register - Register a new user. 
+ * NOTE: Multer handles the body parsing here, NOT express.json() */
 app.post('/api/register', upload.single('avatar'), (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ message: 'Username and password required' });
     if (getUserByUsername(username)) return res.status(400).json({ message: 'Username already taken' });
 
+    const newUserId = users.length + 101;
     const newUser = {
-        id: users.length + 101,
+        id: newUserId,
         username: username,
         password: password, 
-        avatar: req.file ? `/uploads/${req.file.filename}` : '/img/anon_blue.png'
+        avatar: req.file ? `/uploads/${newUserId}_${path.parse(req.file.filename).base}` : '/img/anon_blue.png'
     };
     users.push(newUser);
+    
+    // Rename temp file if registration was successful
+    if (req.file) {
+        const oldPath = req.file.path;
+        const newFilename = `${newUserId}_${path.parse(req.file.filename).base}`;
+        const newPath = path.join(UPLOAD_DIR, newFilename);
+        
+        // This is important to ensure the file is saved with the correct, permanent ID
+        fs.rename(oldPath, newPath, (err) => {
+            if (err) console.error('Error renaming file:', err);
+        });
+        newUser.avatar = `/uploads/${newFilename}`;
+    }
+
     res.status(201).json({ message: 'User registered successfully.' });
 });
 
-/** POST /api/login - Authenticate and return JWT. */
+/** POST /api/login - Authenticate and return JWT. 
+ * NOTE: This route uses express.json() middleware */
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = getUserByUsername(username);
@@ -153,10 +168,10 @@ app.post('/api/login', (req, res) => {
         return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // --- ИСПРАВЛЕНИЕ: Генерируем новый токен для обновления localStorage клиента
+    // Fix: Generate a new token to ensure client's token is always valid
     const token = generateToken(user);
     
-    // Инициализация DM-каналов для старых аккаунтов при логине
+    // Initialize DM-channels for existing friends (important for old accounts)
     (friends[user.id] || []).forEach(friendId => {
          createDMChannel(user.id, friendId);
     });
@@ -180,7 +195,8 @@ app.get('/api/profile/:userId', async (req, res) => {
     });
 });
 
-/** POST /api/update-profile - Update username and/or avatar. */
+/** POST /api/update-profile - Update username and/or avatar. 
+ * NOTE: Requires verifyToken for auth, then Multer for body parsing */
 app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res) => {
     const userId = req.user.userId;
     const user = getUserById(userId);
@@ -199,13 +215,23 @@ app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res)
     }
 
     if (req.file) {
+        // Delete old avatar file if it's not a default image
         if (user.avatar && !user.avatar.startsWith('/img/')) { 
              try { fs.unlinkSync(path.join(__dirname, user.avatar)); } catch (e) { /* silent fail */ }
         }
-        user.avatar = `/uploads/${req.file.filename}`; 
+        
+        // Multer saved the new file with temp_reg ID, rename it to the actual userId
+        const oldPath = req.file.path;
+        const newFilename = `${userId}_${path.parse(req.file.filename).base}`;
+        const newPath = path.join(UPLOAD_DIR, newFilename);
+        
+        fs.renameSync(oldPath, newPath); // Use Sync since this is inside a request handler
+
+        user.avatar = `/uploads/${newFilename}`;
         updatedAvatar = user.avatar;
     }
 
+    // Notify all clients about the profile change
     io.emit('userUpdateInfo', { 
         userId: user.id, 
         newUsername: updatedUsername, 
@@ -230,6 +256,7 @@ app.post('/api/delete-account', verifyToken, (req, res) => {
 
     const deletedUser = users.splice(userIndex, 1)[0];
 
+    // Clean up all related data (friends, requests, DMs)
     delete friends[userId];
     for (const friendId in friends) {
         friends[friendId] = friends[friendId].filter(id => id !== userId);
@@ -244,10 +271,12 @@ app.post('/api/delete-account', verifyToken, (req, res) => {
     }
     delete userDMChannels[userId];
     
+    // Delete avatar file
     if (deletedUser.avatar && !deletedUser.avatar.startsWith('/img/')) {
         try { fs.unlinkSync(path.join(__dirname, deletedUser.avatar)); } catch (e) { /* silent fail */ }
     }
 
+    // Notify connected user and force logout
     if (connectedUsers[userId]) {
         connectedUsers[userId].emit('accountDeleted');
         delete connectedUsers[userId];
@@ -271,7 +300,7 @@ io.on('connection', (socket) => {
                 socket.join(`user_${currentUser.id}`);
                 connectedUsers[currentUser.id] = socket;
                 
-                // --- ИСПРАВЛЕНИЕ: Перезагрузка данных при аутентификации для исправления кнопок заявок/друзей
+                // Load all friend data, including DM channel IDs
                 const userFriends = (friends[currentUser.id] || []).map(friendId => {
                     const friend = getUserById(friendId);
                     const dmChannel = createDMChannel(currentUser.id, friendId);
@@ -284,9 +313,9 @@ io.on('connection', (socket) => {
                     };
                 });
                 
+                // Load incoming pending requests
                 const incomingRequests = Object.keys(friendRequests).filter(key => {
                     const requesterId = parseInt(key);
-                    // Проверяем, что запрос существует и имеет статус 'pending'
                     return friendRequests[requesterId] && friendRequests[requesterId][currentUser.id] === 'pending';
                 }).map(requesterId => {
                     const requester = getUserById(parseInt(requesterId));
@@ -297,7 +326,7 @@ io.on('connection', (socket) => {
                     };
                 });
                 
-                // Если нет активного чата, выбираем первый DM канал
+                // Select the first DM channel as the active one if none is set
                 if (currentChatId === 0 && userFriends.length > 0) {
                      currentChatId = userFriends[0].channelId;
                 }
@@ -319,7 +348,8 @@ io.on('connection', (socket) => {
                 socket.disconnect();
             }
         } catch (e) {
-            socket.emit('requestError', 'Invalid token.'); // Эту ошибку мы хотим исправить
+            // Fix: Sends an explicit error for invalid/expired tokens
+            socket.emit('requestError', 'Invalid token.'); 
             socket.disconnect();
         }
     });
@@ -390,15 +420,15 @@ io.on('connection', (socket) => {
 
         friendRequests[recipient.id] = friendRequests[recipient.id] || {};
         if (friendRequests[recipient.id][currentUser.id] === 'pending') {
-             // Если получатель уже отправил запрос, автоматически принимаем его.
+             // If recipient already sent a request, automatically accept it.
              
-             // 1. Добавляем в друзья
+             // 1. Add as friends
              friends[currentUser.id] = friends[currentUser.id] || [];
              friends[recipient.id] = friends[recipient.id] || [];
              friends[currentUser.id].push(recipient.id);
              friends[recipient.id].push(currentUser.id);
              
-             // 2. Создаем канал и удаляем запрос
+             // 2. Create channel and delete request
              const dmChannel = createDMChannel(currentUser.id, recipient.id);
              delete friendRequests[recipient.id][currentUser.id];
              
@@ -411,7 +441,7 @@ io.on('connection', (socket) => {
                      channelId: dmChannel.id
                  });
              }
-             // Переаутентификация для обновления списка друзей у себя
+             // Re-authenticate to refresh friend list for the sender
              socket.emit('authenticate', generateToken(currentUser)); 
              return;
         }
@@ -420,6 +450,7 @@ io.on('connection', (socket) => {
         friendRequests[currentUser.id][recipient.id] = 'pending';
         socket.emit('requestSuccess', `Friend request sent to ${recipientUsername}.`);
 
+        // Notify recipient if they are online
         if (connectedUsers[recipient.id]) {
             connectedUsers[recipient.id].emit('friendRequestReceived', {
                 userId: currentUser.id,
@@ -468,7 +499,7 @@ io.on('connection', (socket) => {
                 });
             }
             
-            // --- ИСПРАВЛЕНИЕ: Переаутентификация для обновления списков друзей
+            // Re-authenticate to refresh friend list for the recipient
             socket.emit('authenticate', generateToken(currentUser)); 
 
         } else if (action === 'reject') {
