@@ -3,128 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChaoticCord - Discord Style</title>
+    <title>ChaoticCord</title>
     
     <style>
-        /* --- 🎨 Стиль Discord (Серый, Темный) --- */
+        /* --- 🎨 Стиль Discord и Темы --- */
+        /* По умолчанию - Темная Тема */
         :root {
-            --bg-darker: #1e1f22; /* Самый темный фон (Серверы) */
-            --bg-dark: #2b2d31;   /* Темный фон (Каналы/Друзья/Пользователи) */
-            --bg-medium: #383a40; /* Фон чата */
+            --bg-darker: #1e1f22; 
+            --bg-dark: #2b2d31;   
+            --bg-medium: #383a40; 
             --text-primary: #dbdee1;
             --text-secondary: #949ba4;
-            --brand-color: #5865f2; /* Синий/Фиолетовый */
+            --brand-color: #5865f2; 
             --online-color: #388647;
             --offline-color: #72767d;
+            --input-bg: #2b2d31;
+            --card-bg: #2b2d31;
         }
 
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-medium);
-            color: var(--text-primary);
-            overflow: hidden;
+        /* Светлая Тема (Light Theme) */
+        .theme-light {
+            --bg-darker: #f2f3f5;
+            --bg-dark: #ffffff;
+            --bg-medium: #f2f3f5;
+            --text-primary: #2e3338;
+            --text-secondary: #5c626a;
+            --brand-color: #5865f2;
+            --online-color: #388647;
+            --offline-color: #72767d;
+            --input-bg: #e3e5e8;
+            --card-bg: #ffffff;
         }
-
-        /* --- Общий Макет (Grid) --- */
-        #app-container {
-            display: grid;
-            /* Серверы | Каналы/Друзья | Чат | Пользователи */
-            grid-template-columns: 72px 240px 1fr 240px; 
-            height: 100vh;
-        }
-
-        /* --- 1. Панель Серверов (Server List) --- */
-        #server-list {
-            grid-column: 1;
-            background-color: var(--bg-darker);
-            padding-top: 12px;
-            overflow-y: auto;
-        }
-        .server-icon {
-            width: 48px; height: 48px; margin: 8px auto; border-radius: 50%; 
-            background-color: var(--bg-medium);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: bold; color: white; cursor: pointer;
-            transition: border-radius 0.2s, background-color 0.2s;
-        }
+        
+        /* Глобальные стили */
+        body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; background-color: var(--bg-medium); color: var(--text-primary); overflow: hidden; }
+        #app-container { display: grid; grid-template-columns: 72px 240px 1fr 240px; height: 100vh; }
+        
+        /* Серверы */
+        #server-list { grid-column: 1; background-color: var(--bg-darker); padding-top: 12px; overflow-y: auto; }
+        .server-icon { width: 48px; height: 48px; margin: 8px auto; border-radius: 50%; background-color: var(--bg-medium); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; color: white; cursor: pointer; transition: border-radius 0.2s, background-color 0.2s; }
         .server-icon:hover { border-radius: 35%; background-color: var(--brand-color); }
 
-        /* --- 2. Панель Друзей/Каналов (Friends/Channels) --- */
-        #friends-channels-panel {
-            grid-column: 2;
-            background-color: var(--bg-dark);
-            padding: 10px;
-            overflow-y: auto;
-        }
-        #friends-channels-panel h3 {
-            color: var(--text-secondary); font-size: 14px; text-transform: uppercase; margin-top: 20px;
-        }
-        .friend-item, .channel-item, .request-item {
-            padding: 8px; display: flex; align-items: center; border-radius: 4px; cursor: pointer; margin-bottom: 2px;
-        }
+        /* Каналы/Друзья (2-я колонка) */
+        #friends-channels-panel { grid-column: 2; background-color: var(--bg-dark); padding: 10px; overflow-y: auto; display: flex; flex-direction: column;}
+        #friends-channels-panel h3 { color: var(--text-secondary); font-size: 14px; text-transform: uppercase; margin-top: 20px; }
+        .friend-item, .channel-item, .request-item { padding: 8px; display: flex; align-items: center; border-radius: 4px; cursor: pointer; margin-bottom: 2px; transition: background-color 0.1s;}
+        .channel-item.active { background-color: var(--bg-medium); color: var(--text-primary); }
         .friend-item:hover, .channel-item:hover { background-color: var(--bg-medium); }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; transition: background-color 0.3s; }
+        .channel-item { padding-left: 12px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
         .online { background-color: var(--online-color); }
         .offline { background-color: var(--offline-color); }
 
-        /* --- 3. Область Чата (Chat Area) --- */
-        #chat-area {
-            grid-column: 3;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-medium);
-            position: relative;
-        }
-        #messages-container {
-            flex-grow: 1;
-            padding: 0 20px 20px 20px;
-            overflow-y: auto;
-        }
-        .message {
-            margin-bottom: 12px; padding-top: 5px; display: flex; position: relative; animation: fadeIn 0.3s ease-out; 
-        }
+        /* Профиль внизу (2-я колонка) */
+        #user-profile-bar { margin-top: auto; padding: 8px; background-color: var(--bg-darker); display: flex; align-items: center; cursor: pointer;}
+        #user-profile-bar .avatar { width: 32px; height: 32px; margin-right: 8px;}
+        #user-profile-bar strong { font-size: 14px; }
+        
+        /* Чат */
+        #chat-area { grid-column: 3; display: flex; flex-direction: column; background-color: var(--bg-medium); position: relative; }
+         #chat-area header { padding: 10px 20px; border-bottom: 1px solid var(--bg-dark); background: var(--bg-dark); color: white; }
+        #messages-container { flex-grow: 1; padding: 0 20px 20px 20px; overflow-y: auto; }
+        .message { margin-bottom: 12px; padding-top: 5px; display: flex; position: relative; }
         .message-content { margin-left: 10px; }
         .message strong { color: white; margin-right: 5px; font-weight: 500; }
         .timestamp { color: var(--text-secondary); font-size: 12px; margin-left: 10px; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: var(--offline-color); }
+        .avatar:hover { cursor: pointer; }
         
         /* Ввод сообщений */
-        #form { padding: 15px 20px; background-color: var(--bg-medium); border-top: 1px solid #1e1f22; }
-        #form-inner { display: flex; background-color: var(--bg-dark); border-radius: 8px; padding: 8px; }
+        #form { padding: 15px 20px; background-color: var(--bg-medium); }
+        #form-inner { display: flex; background-color: var(--input-bg); border-radius: 8px; padding: 8px; border: 1px solid var(--bg-dark); }
         #input { border: none; padding: 0 10px; flex-grow: 1; background: none; color: var(--text-primary); outline: none; font-size: 16px; }
         #form > #form-inner > button { background-color: var(--brand-color); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
         #form > #form-inner > button:hover { background-color: #4f5bcf; }
-
-        /* --- 4. Список Пользователей (User List) --- */
-        #user-list { grid-column: 4; background-color: var(--bg-dark); padding: 10px; overflow-y: auto; }
-        #user-list h3 { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
-
-        /* --- Экраны Аутентификации (Overlay) --- */
-        #auth-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-dark); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #auth-form { background: var(--bg-darker); padding: 30px; border-radius: 5px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); width: 350px; }
-        #auth-form input { width: 90%; padding: 12px; margin: 8px 0; background-color: var(--bg-medium); border: 1px solid #2f3136; color: var(--text-primary); border-radius: 3px; outline: none; }
-        #auth-form button { width: 100%; padding: 12px; margin-top: 10px; background-color: var(--brand-color); color: white; border: none; border-radius: 3px; font-size: 16px; cursor: pointer; }
-        .auth-switch { text-align: center; color: var(--brand-color); cursor: pointer; font-size: 14px; margin-top: 10px; }
         .action-button { background-color: var(--online-color); color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-left: 5px; cursor: pointer; font-size: 12px;}
         .action-button.reject { background-color: #da373c; }
 
-        /* Анимации */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        /* Список Пользователей (4-я колонка) */
+        #user-list { grid-column: 4; background-color: var(--bg-dark); padding: 10px; overflow-y: auto; }
+        #user-list h3 { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
 
+        /* Модальные окна */
+        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); }
+        .modal-content { background-color: var(--card-bg); margin: 10% auto; padding: 30px; border-radius: 8px; width: 400px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); color: var(--text-primary); }
+        .close { color: var(--text-secondary); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+        .close:hover { color: var(--text-primary); }
+        .modal-input { width: 95%; padding: 10px; margin: 10px 0; background-color: var(--bg-medium); border: 1px solid var(--bg-dark); color: var(--text-primary); border-radius: 3px; outline: none; }
+        .modal-button { width: 100%; padding: 10px; margin-top: 10px; background-color: var(--brand-color); color: white; border: none; border-radius: 3px; font-size: 16px; cursor: pointer; }
+        .auth-switch { text-align: center; color: var(--brand-color); cursor: pointer; font-size: 14px; margin-top: 10px; }
     </style>
 </head>
-<body>
+<body class="theme-dark">
     
     <div id="auth-screen">
         <form id="auth-form">
             <h2>Добро пожаловать</h2>
             <input type="text" id="auth-username" placeholder="Имя Пользователя" required>
             <input type="password" id="auth-password" placeholder="Пароль" required>
+            <input type="text" id="auth-avatar" placeholder="Ссылка на Аватар (опционально)">
             <button type="submit" id="auth-button">Войти</button>
             <p id="auth-switch-text" class="auth-switch">
                 <small>Переключиться на Регистрацию</small>
@@ -137,27 +114,38 @@
 
         <aside id="server-list">
             <div class="server-icon" style="background-color: var(--brand-color);">C</div>
+            <div class="server-icon" id="theme-icon" style="background-color: var(--bg-dark); font-size: 24px;">💡</div>
         </aside>
 
         <aside id="friends-channels-panel">
             <h2 style="font-size: 18px; color: white;">ChaoticCord</h2>
             
             <h3>КАНАЛЫ</h3>
-            <div class="channel-item"># general</div>
+            <ul id="channel-list-container" style="list-style: none; padding: 0;"></ul>
+            <button id="create-channel-btn" style="width: 100%; margin-top: 10px; background: var(--online-color); color: white; border: none; padding: 5px; border-radius: 3px;">+ Создать Канал</button>
             
             <h3>ДРУЗЬЯ</h3>
-            <ul id="friends-list-container" style="list-style: none; padding: 0;">
-                </ul>
+            <ul id="friends-list-container" style="list-style: none; padding: 0;"></ul>
             
             <h3>ЗАПРОСЫ</h3>
-            <ul id="friend-requests-container" style="list-style: none; padding: 0;">
-                </ul>
+            <ul id="friend-requests-container" style="list-style: none; padding: 0;"></ul>
 
-            <input type="text" id="friend-request-input" placeholder="Добавить друга по имени" style="width: 90%; padding: 5px; background: var(--bg-medium); border: none; color: white; margin-top: 10px; border-radius: 3px;">
-            <button id="send-request-btn" style="width: 100%; margin-top: 5px; background: #388647; color: white; border: none; padding: 5px; border-radius: 3px;">Отправить Запрос</button>
+            <input type="text" id="friend-request-input" placeholder="Добавить друга по имени" class="modal-input" style="width: calc(100% - 10px); background: var(--bg-medium); margin-top: 10px;">
+            <button id="send-request-btn" class="modal-button" style="width: 100%; margin-top: 5px; background: #388647;">Отправить Запрос</button>
+            
+            <div id="user-profile-bar">
+                <img id="my-avatar" class="avatar" src="" alt="Avatar">
+                <div style="flex-grow: 1;">
+                    <strong id="my-username"></strong>
+                    <div style="color: var(--text-secondary); font-size: 12px;">#ID</div>
+                </div>
+            </div>
         </aside>
 
         <main id="chat-area">
+             <header>
+                # <strong id="current-channel-name">general</strong>
+            </header>
             <div id="messages-container">
                 </div>
             
@@ -177,6 +165,44 @@
 
     </div>
 
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('profile-modal')">&times;</span>
+            <h2 id="modal-profile-title">Профиль</h2>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img id="modal-avatar" class="avatar" style="width: 80px; height: 80px; margin: 10px;" src="" alt="Avatar">
+                <h3 id="modal-username"></h3>
+                <p id="modal-status" style="color: var(--online-color);"></p>
+            </div>
+            
+            <div id="my-profile-settings" style="border-top: 1px solid var(--bg-darker); padding-top: 15px;">
+                <h4>Изменить Настройки</h4>
+                <input type="text" id="new-username-input" placeholder="Новое имя пользователя" class="modal-input">
+                <input type="text" id="new-avatar-input" placeholder="Новая ссылка на аватар" class="modal-input">
+                <button class="modal-button" id="update-profile-btn">Сохранить Изменения</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="create-channel-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('create-channel-modal')">&times;</span>
+            <h2>Создать Канал</h2>
+            <input type="text" id="new-channel-name-input" placeholder="Название канала (например, test-channel)" class="modal-input">
+            <button class="modal-button" id="submit-create-channel">Создать</button>
+        </div>
+    </div>
+    
+    <div id="theme-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('theme-modal')">&times;</span>
+            <h2>Смена Темы</h2>
+            <button class="modal-button" onclick="setTheme('dark')" style="background-color: #1e1f22;">Темная Тема</button>
+            <button class="modal-button" onclick="setTheme('light')" style="background-color: #ffffff; color: #2e3338; border: 1px solid #ddd; margin-top: 10px;">Светлая Тема</button>
+        </div>
+    </div>
+
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // --- Переменные и Хранилище ---
@@ -184,39 +210,103 @@
         let token = localStorage.getItem('token');
         let currentUserId = localStorage.getItem('userId');
         let currentUsername = localStorage.getItem('username');
+        let currentAvatar = localStorage.getItem('avatar') || '/img/default_chaos.png';
+        let currentChannelId = 1; 
         let isRegisterMode = false;
-        
+        let socket; 
+        let onlineUsers = {}; 
+
         // --- Элементы GUI ---
         const authScreen = document.getElementById('auth-screen');
         const authForm = document.getElementById('auth-form');
+        const authSwitchText = document.getElementById('auth-switch-text');
         const authButton = document.getElementById('auth-button');
         const authMessage = document.getElementById('auth-message');
-        const authSwitchText = document.getElementById('auth-switch-text');
+        const authAvatarInput = document.getElementById('auth-avatar');
+
         const appContainer = document.getElementById('app-container');
         const messagesContainer = document.getElementById('messages-container');
         const form = document.getElementById('form');
         const input = document.getElementById('input');
-        const sendRequestBtn = document.getElementById('send-request-btn');
-        const friendRequestInput = document.getElementById('friend-request-input');
-        const friendRequestsContainer = document.getElementById('friend-requests-container');
+        
+        const userProfileBar = document.getElementById('user-profile-bar');
+        const myUsernameEl = document.getElementById('my-username');
+        const myAvatarEl = document.getElementById('my-avatar');
+        
         const onlineUsersList = document.getElementById('online-users-list');
         const onlineUsersCount = document.getElementById('online-users-count');
 
-        let socket; 
+        const channelListContainer = document.getElementById('channel-list-container');
+        const currentChannelName = document.getElementById('current-channel-name');
+        const createChannelBtn = document.getElementById('create-channel-btn');
+        const submitCreateChannel = document.getElementById('submit-create-channel');
+        const newChannelNameInput = document.getElementById('new-channel-name-input');
         
+        const friendsListContainer = document.getElementById('friends-list-container');
+        const friendRequestsContainer = document.getElementById('friend-requests-container');
+        const sendRequestBtn = document.getElementById('send-request-btn');
+        const friendRequestInput = document.getElementById('friend-request-input');
+
+        // Модалы
+        const profileModal = document.getElementById('profile-modal');
+        const updateProfileBtn = document.getElementById('update-profile-btn');
+        const newUsernameInput = document.getElementById('new-username-input');
+        const newAvatarInput = document.getElementById('new-avatar-input');
+        const themeIcon = document.getElementById('theme-icon');
+        const themeModal = document.getElementById('theme-modal');
+        
+        // --- 0. ТЕМЫ И МОДАЛЬНЫЕ ОКНА ---
+
+        function setTheme(theme) {
+            document.body.className = `theme-${theme}`;
+            localStorage.setItem('theme', theme);
+        }
+        
+        if (localStorage.getItem('theme')) {
+            setTheme(localStorage.getItem('theme'));
+        } else {
+             setTheme('dark');
+        }
+
+        themeIcon.addEventListener('click', () => {
+            document.getElementById('theme-modal').style.display = 'block';
+        });
+
+        function openModal(id, userId = currentUserId) {
+            if (id === 'profile-modal') {
+                loadProfileData(userId);
+            }
+            document.getElementById(id).style.display = 'block';
+        }
+
+        function closeModal(id) {
+             document.getElementById(id).style.display = 'none';
+        }
+        
+        userProfileBar.addEventListener('click', () => openModal('profile-modal'));
+        createChannelBtn.addEventListener('click', () => openModal('create-channel-modal'));
+
+
         // --- 1. ЛОГИКА АУТЕНТИФИКАЦИИ ---
         
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
             authButton.textContent = isRegisterMode ? 'Зарегистрироваться' : 'Войти';
             authSwitchText.innerHTML = isRegisterMode ? '<small>Переключиться на Вход</small>' : '<small>Переключиться на Регистрацию</small>';
+            authAvatarInput.style.display = isRegisterMode ? 'block' : 'none';
         }
         authSwitchText.addEventListener('click', toggleAuthMode);
+        
+        function updateGUI() {
+            myUsernameEl.textContent = currentUsername;
+            myAvatarEl.src = currentAvatar;
+        }
 
         authForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const username = document.getElementById('auth-username').value;
             const password = document.getElementById('auth-password').value;
+            const avatar = document.getElementById('auth-avatar').value.trim();
             
             const endpoint = isRegisterMode ? '/api/register' : '/api/login';
             
@@ -224,32 +314,33 @@
                 const response = await fetch(API_URL + endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, avatar: avatar || null })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok && !isRegisterMode) {
-                    // Вход успешен
                     token = data.token;
                     currentUserId = data.userId;
                     currentUsername = data.username;
+                    currentAvatar = data.avatar;
+
                     localStorage.setItem('token', token);
                     localStorage.setItem('userId', currentUserId);
                     localStorage.setItem('username', currentUsername);
+                    localStorage.setItem('avatar', currentAvatar);
                     
                     authScreen.style.display = 'none';
                     appContainer.style.display = 'grid';
+                    updateGUI();
                     connectSocket(); 
                     
                 } else if (response.ok && isRegisterMode) {
-                    // Регистрация успешна
                     authMessage.textContent = 'Регистрация успешна! Теперь войдите.';
                     authMessage.style.color = 'var(--online-color)';
                     toggleAuthMode();
                     
                 } else {
-                    // Ошибка
                     authMessage.textContent = data.message || 'Ошибка. Попробуйте снова.';
                     authMessage.style.color = 'red';
                 }
@@ -262,6 +353,7 @@
         if (token) {
             authScreen.style.display = 'none';
             appContainer.style.display = 'grid';
+            updateGUI();
             connectSocket(); 
         }
 
@@ -274,67 +366,201 @@
                 socket.emit('authenticate', token);
             });
             
-            // Получение новых сообщений
             socket.on('newMessage', displayMessage);
             
-            // Ошибки сервера
-            socket.on('requestError', (message) => {
-                console.error("Socket Error:", message);
-                alert(`Ошибка: ${message}`);
+            socket.on('messageHistory', (history) => {
+                messagesContainer.innerHTML = ''; 
+                history.forEach(msg => displayMessage(msg, true)); 
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; 
             });
             
-            // Успешный запрос (например, отправка запроса в друзья)
-            socket.on('requestSuccess', (message) => {
-                alert(`Успешно: ${message}`);
+            // Каналы
+            socket.on('initialChannels', (data) => {
+                renderChannels(data.channels, data.activeChannelId);
+                currentChannelId = data.activeChannelId;
+            });
+            socket.on('channelChanged', (newId) => {
+                currentChannelId = newId;
+                const activeChannel = document.querySelector(`.channel-item[data-id="${newId}"]`);
+                if (activeChannel) {
+                    currentChannelName.textContent = activeChannel.textContent.trim().substring(1);
+                }
+            });
+            socket.on('newChannelCreated', (channel) => {
+                 addChannelToGUI(channel);
             });
 
-            // Новый запрос в друзья
-            socket.on('newFriendRequest', displayFriendRequest);
 
-            // Принятие запроса
+            // Друзья и Статус
+            socket.on('initialRelations', renderRelations);
+            socket.on('initialOnlineUsers', (users) => {
+                users.forEach(user => {
+                    if (user.id != currentUserId) {
+                        onlineUsers[user.id] = { username: user.username, status: 'online' };
+                    }
+                });
+                renderOnlineList();
+            });
+            socket.on('userStatusUpdate', updateOnlineUsers);
+            socket.on('newFriendRequest', displayFriendRequest);
+            
             socket.on('friendAccepted', (username) => {
                 alert(`${username} принял ваш запрос в друзья!`);
-                // В идеале: обновить friends-list-container
+                socket.emit('reSyncRelations'); 
             });
+            socket.on('reSyncRelations', renderRelations); 
             
-            // Обновление статуса (онлайн/оффлайн)
-            socket.on('userStatusUpdate', updateOnlineUsers);
+            socket.on('requestError', (message) => { alert(`Ошибка: ${message}`); });
+            socket.on('requestSuccess', (message) => { alert(`Успешно: ${message}`); });
         }
 
         form.addEventListener('submit', function(e) {
             e.preventDefault(); 
             if (input.value.trim() && socket) {
-                // Отправляем на сервер:
-                socket.emit('chat message', {
-                    content: input.value,
-                });
+                socket.emit('chat message', { content: input.value });
                 input.value = '';
             }
         });
         
-        // Функция отображения сообщения
-        function displayMessage(data) {
+        function displayMessage(data, isHistory = false) {
+            if (!isHistory && data.channelId && data.channelId != currentChannelId) return; 
+             
             const messageEl = document.createElement('div');
             messageEl.classList.add('message');
             
+            const time = new Date(data.timestamp).toLocaleTimeString(); 
+
             messageEl.innerHTML = `
-                <div class="avatar"></div>
+                <img class="avatar" src="${data.avatar}" onclick="openModal('profile-modal', ${data.user_id})">
                 <div class="message-content">
                     <div>
                         <strong>${data.username}</strong>
-                        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                        <span class="timestamp">${time}</span>
                     </div>
                     <div class="text">${data.content}</div>
                 </div>
             `;
             
             messagesContainer.appendChild(messageEl);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            if (!isHistory) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
 
-        // --- 3. ЛОГИКА ДРУЗЕЙ ---
+        // --- 3. КАНАЛЫ ---
+        
+        function renderChannels(channels, activeId) {
+            channelListContainer.innerHTML = '';
+            channels.forEach(channel => addChannelToGUI(channel, activeId));
+        }
 
-        // Отправка запроса
+        function addChannelToGUI(channel, activeId = currentChannelId) {
+            // Удалить существующий, если есть (для обновления)
+            document.querySelector(`.channel-item[data-id="${channel.id}"]`)?.remove();
+            
+            const li = document.createElement('li');
+            li.className = `channel-item ${channel.id == activeId ? 'active' : ''}`;
+            li.textContent = `# ${channel.name}`;
+            li.dataset.id = channel.id;
+            li.addEventListener('click', () => joinChannel(channel.id));
+            channelListContainer.appendChild(li);
+        }
+
+        function joinChannel(channelId) {
+            if (channelId == currentChannelId) return;
+            
+            document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+            document.querySelector(`.channel-item[data-id="${channelId}"]`).classList.add('active');
+            
+            currentChannelName.textContent = document.querySelector(`.channel-item[data-id="${channelId}"]`).textContent.trim().substring(1);
+
+            if (socket) {
+                socket.emit('joinChannel', channelId);
+            }
+        }
+        
+        submitCreateChannel.addEventListener('click', () => {
+             const name = newChannelNameInput.value.trim();
+             if (name) {
+                 socket.emit('createChannel', name);
+                 closeModal('create-channel-modal');
+                 newChannelNameInput.value = '';
+             }
+        });
+        
+
+        // --- 4. ПРОФИЛЬ И НАСТРОЙКИ ---
+        
+        async function loadProfileData(userId) {
+            const isMyProfile = userId == currentUserId;
+            
+            document.getElementById('my-profile-settings').style.display = isMyProfile ? 'block' : 'none';
+
+            try {
+                const response = await fetch(`${API_URL}/api/profile/${userId}`);
+                const user = await response.json();
+                
+                document.getElementById('modal-profile-title').textContent = isMyProfile ? 'Мой Профиль' : 'Профиль Пользователя';
+                document.getElementById('modal-avatar').src = user.avatar;
+                document.getElementById('modal-username').textContent = user.username;
+                document.getElementById('modal-status').textContent = user.status === 'online' ? 'Онлайн' : 'Оффлайн';
+                document.getElementById('modal-status').style.color = user.status === 'online' ? 'var(--online-color)' : 'var(--offline-color)';
+
+                if (isMyProfile) {
+                    newUsernameInput.value = user.username;
+                    newAvatarInput.value = user.avatar;
+                }
+            } catch (error) {
+                 alert('Не удалось загрузить данные профиля.');
+            }
+        }
+        
+        updateProfileBtn.addEventListener('click', async () => {
+            const newUsername = newUsernameInput.value.trim();
+            const newAvatar = newAvatarInput.value.trim();
+            
+            try {
+                const response = await fetch(`${API_URL}/api/update_profile`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ newUsername, newAvatar })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(data.message);
+                    
+                    if (data.username) { // Если имя изменилось
+                        currentUsername = data.username;
+                        localStorage.setItem('username', currentUsername);
+                        token = data.token; // Обновляем токен
+                        localStorage.setItem('token', token);
+                    }
+                    if (newAvatar) {
+                        currentAvatar = newAvatar;
+                        localStorage.setItem('avatar', currentAvatar);
+                    }
+                    
+                    updateGUI();
+                    closeModal('profile-modal');
+                    // Переподключение для обновления имени в сообщениях и списках
+                    socket.disconnect(); 
+                    connectSocket(); 
+                    
+                } else {
+                    alert(data.message || 'Ошибка обновления профиля.');
+                }
+            } catch (error) {
+                alert('Ошибка сети при обновлении профиля.');
+            }
+        });
+
+        // --- 5. ДРУЗЬЯ И СТАТУС ---
+        
         sendRequestBtn.addEventListener('click', () => {
              const recipientUsername = friendRequestInput.value.trim();
              if (socket && recipientUsername) {
@@ -343,14 +569,41 @@
              }
         });
 
-        // Отображение запроса в списке
+        function renderRelations(relations) {
+            friendsListContainer.innerHTML = '';
+            friendRequestsContainer.innerHTML = '';
+
+            relations.forEach(rel => {
+                if (rel.id == currentUserId) return; 
+
+                // Определяем, кто отправитель (для списка запросов)
+                const isPendingRequestToMe = rel.status === 'pending' 
+                                            // В SQL запросе мы выбираем ID, который не равен текущему
+                                            // Если статус "pending", и мы не отправитель этого запроса, то это к нам
+                                            // Простая эвристика: если статус pending, считаем, что это к нам.
+                                            // Более точная логика: нужна колонка 'senderId' в relations. 
+                                            ? true : false;
+                
+
+                if (rel.status === 'accepted') {
+                    // Друзья
+                    const li = document.createElement('li');
+                    li.classList.add('friend-item');
+                    li.innerHTML = `<span class="status-dot ${onlineUsers[rel.id] ? 'online' : 'offline'}"></span> ${rel.username}`;
+                    friendsListContainer.appendChild(li);
+                } else if (rel.status === 'pending' && isPendingRequestToMe) {
+                    // Запросы в друзья
+                    displayFriendRequest({ senderId: rel.id, senderUsername: rel.username });
+                }
+            });
+        }
+        
         function displayFriendRequest(data) {
-            // Удалить существующий элемент, если он есть
             let existingLi = document.getElementById(`request-${data.senderId}`);
-            if (existingLi) existingLi.remove();
+            if (existingLi) return; 
 
             const li = document.createElement('li');
-            li.id = `request-${data.senderId}`;
+            li.id = `request-${data.senderId}`; 
             li.innerHTML = `
                 <div class="request-item friend-item">
                     ${data.senderUsername}
@@ -358,32 +611,26 @@
                     <button class="action-button reject" onclick="rejectRequest('${data.senderId}')">Отклонить</button>
                 </div>
             `;
-            friendRequestsContainer.prepend(li); // Добавляем новый запрос сверху
+            friendRequestsContainer.prepend(li);
         }
 
-        // Принятие запроса (вызывается из кнопки)
         function acceptRequest(senderId) {
             if (socket) {
                 socket.emit('acceptFriendRequest', { senderId });
-                // Удаляем запрос из списка после отправки на сервер
-                document.getElementById(`request-${senderId}`).remove();
+                document.getElementById(`request-${senderId}`)?.remove();
             }
         }
         
-        // Отклонение запроса (нужно реализовать логику на сервере!)
         function rejectRequest(senderId) {
             if (socket) {
-                // socket.emit('rejectFriendRequest', { senderId }); // Серверная логика
-                document.getElementById(`request-${senderId}`).remove();
-                alert('Запрос отклонен (только на клиенте, серверная логика не реализована).');
+                socket.emit('rejectFriendRequest', { senderId });
+                document.getElementById(`request-${senderId}`)?.remove();
             }
         }
-        
-        // --- 4. ЛОГИКА СТАТУСА ОНЛАЙН ---
-        
-        const onlineUsers = {}; // Хранилище пользователей: userId -> {username, status}
 
         function updateOnlineUsers(data) {
+            if (data.userId == currentUserId) return; 
+
             if (data.status === 'online') {
                 onlineUsers[data.userId] = { username: data.username, status: 'online' };
             } else if (data.status === 'offline') {
@@ -391,19 +638,17 @@
             }
             
             renderOnlineList();
+            renderRelations(socket.relations || []); // Вызываем рендеринг друзей для обновления статуса
         }
 
         function renderOnlineList() {
-            onlineUsersList.innerHTML = ''; // Очищаем список
+            onlineUsersList.innerHTML = '';
             const usersArray = Object.values(onlineUsers).filter(u => u.username !== currentUsername);
             
             usersArray.forEach(user => {
                 const li = document.createElement('li');
                 li.classList.add('friend-item');
-                li.innerHTML = `
-                    <span class="status-dot online"></span>
-                    ${user.username}
-                `;
+                li.innerHTML = `<span class="status-dot online"></span> ${user.username}`;
                 onlineUsersList.appendChild(li);
             });
             
