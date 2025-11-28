@@ -1,3 +1,4 @@
+
 // --- Server Setup and Dependencies ---
 const express = require('express');
 const http = require('http');
@@ -12,7 +13,7 @@ const server = http.createServer(app);
 const io = socketio(server);
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'your_super_secret_key'; // !!! CHANGE THIS IN PRODUCTION !!!
+const JWT_SECRET = 'fdsfjsdklk$!#JH$@KLHJ$LASKDASJKFHdsnmfk'; // !!! CHANGE THIS IN PRODUCTION !!!
 
 // --- Middleware and Setup ---
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
