@@ -12,12 +12,11 @@ const server = http.createServer(app);
 const io = socketio(server);
 
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = 'CodeTheApp$#MYscordsecret453@#@$@#_$#__$@#$_%%$%$^#^&$*#%^*#$%#^$%_#$_@ygdfsgdfsj@#$@#43_#$@$@#$@'; // CHANGE THIS IN PRODUCTION!
+const JWT_SECRET = 'SDAF@KL#$KLJ#@%(*$@%(@#$JNFDSJKRF@#*$@#&*$FDSFDS'; // CHANGE THIS IN PRODUCTION!
 
 // --- Middleware and Setup ---
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Serve static files from the root and 'img' folder
 app.use(express.static(path.join(__dirname))); 
 
 // Create folders for uploads and default images
@@ -34,7 +33,6 @@ const storage = multer.diskStorage({
         cb(null, UPLOAD_DIR);
     },
     filename: (req, file, cb) => {
-        // Use user ID (if available) and timestamp for unique filename
         const userId = req.user ? req.user.userId : 'temp'; 
         cb(null, `${userId}_${Date.now()}${path.extname(file.originalname)}`);
     }
@@ -52,37 +50,30 @@ const upload = multer({
 }); 
 
 // --- In-Memory Database Simulation ---
-// NOTE: This data structure is volatile and resets on server restart.
 let users = [
     { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png' },
     { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png' }
 ];
-let channels = []; // DM Channels will be stored here
+let channels = []; 
 let channelIdCounter = 1001; 
 let messageIdCounter = 1;
 
-// Stores ID of the receiver and status: { senderId: { receiverId: 'pending'|'accepted' } }
 let friendRequests = {}; 
 
-// Stores friend relationships: { userId: [friendId1, friendId2] }
 let friends = {
     101: [102], 
     102: [101]  
 };
 
-// Maps two user IDs to a single DM channel ID: { user1Id: { user2Id: channelId } }
 let userDMChannels = {}; 
-// Stores active socket connections: { userId: socket }
 let connectedUsers = {}; 
 
 // --- Utility Functions ---
 
-/** Generates a JWT for a user. */
 function generateToken(user) {
     return jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
 }
 
-/** Middleware to verify JWT from request header. */
 function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ message: 'No token provided' });
@@ -97,22 +88,18 @@ function verifyToken(req, res, next) {
     });
 }
 
-/** Finds a user by ID. */
 function getUserById(id) {
     return users.find(u => u.id === id);
 }
 
-/** Finds a user by username. */
 function getUserByUsername(username) {
     return users.find(u => u.username === username);
 }
 
-/** Finds a channel (DM) by ID. */
 function getChannelById(id) {
     return channels.find(c => c.id === id);
 }
 
-/** Creates a DM channel between two users if one doesn't exist. */
 function createDMChannel(user1Id, user2Id) {
     const existingDmId = userDMChannels[user1Id]?.[user2Id] || userDMChannels[user2Id]?.[user1Id];
     if (existingDmId) {
@@ -120,18 +107,16 @@ function createDMChannel(user1Id, user2Id) {
         if (existingChannel) return existingChannel;
     }
 
-    // Create new channel
     const channelName = `dm_${user1Id}_${user2Id}`;
     const channel = {
         id: channelIdCounter++,
         name: channelName,
         isDM: true,
-        messages: [], // Message history saved here
+        messages: [], 
         members: [user1Id, user2Id]
     };
     channels.push(channel);
 
-    // Update map
     userDMChannels[user1Id] = userDMChannels[user1Id] || {};
     userDMChannels[user2Id] = userDMChannels[user2Id] || {};
     userDMChannels[user1Id][user2Id] = channel.id;
@@ -139,6 +124,7 @@ function createDMChannel(user1Id, user2Id) {
 
     return channel;
 }
+
 
 // --- API Endpoints: Auth, Profile, and Settings ---
 
@@ -152,7 +138,6 @@ app.post('/api/register', upload.single('avatar'), (req, res) => {
         id: users.length + 101,
         username: username,
         password: password, 
-        // Avatar path accessible via /uploads or default /img
         avatar: req.file ? `/uploads/${req.file.filename}` : '/img/anon_blue.png'
     };
     users.push(newUser);
@@ -168,7 +153,14 @@ app.post('/api/login', (req, res) => {
         return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    // --- ИСПРАВЛЕНИЕ: Генерируем новый токен для обновления localStorage клиента
     const token = generateToken(user);
+    
+    // Инициализация DM-каналов для старых аккаунтов при логине
+    (friends[user.id] || []).forEach(friendId => {
+         createDMChannel(user.id, friendId);
+    });
+
     res.json({ token, userId: user.id, username: user.username, avatar: user.avatar });
 });
 
@@ -198,7 +190,6 @@ app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res)
     let updatedUsername = user.username;
     let updatedAvatar = user.avatar;
 
-    // Handle Username Update
     if (newUsername && newUsername !== user.username) {
         if (getUserByUsername(newUsername)) {
             return res.status(400).json({ message: 'New username is already taken.' });
@@ -207,9 +198,7 @@ app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res)
         updatedUsername = newUsername;
     }
 
-    // Handle Avatar Update
     if (req.file) {
-        // Delete old avatar file if it's not a default one
         if (user.avatar && !user.avatar.startsWith('/img/')) { 
              try { fs.unlinkSync(path.join(__dirname, user.avatar)); } catch (e) { /* silent fail */ }
         }
@@ -217,7 +206,6 @@ app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res)
         updatedAvatar = user.avatar;
     }
 
-    // Notify connected clients (including self) about the change
     io.emit('userUpdateInfo', { 
         userId: user.id, 
         newUsername: updatedUsername, 
@@ -242,7 +230,6 @@ app.post('/api/delete-account', verifyToken, (req, res) => {
 
     const deletedUser = users.splice(userIndex, 1)[0];
 
-    // Clean up friends, requests, and DM channels related to the deleted user
     delete friends[userId];
     for (const friendId in friends) {
         friends[friendId] = friends[friendId].filter(id => id !== userId);
@@ -257,12 +244,10 @@ app.post('/api/delete-account', verifyToken, (req, res) => {
     }
     delete userDMChannels[userId];
     
-    // Remove avatar file
     if (deletedUser.avatar && !deletedUser.avatar.startsWith('/img/')) {
         try { fs.unlinkSync(path.join(__dirname, deletedUser.avatar)); } catch (e) { /* silent fail */ }
     }
 
-    // Notify the user via socket to log out
     if (connectedUsers[userId]) {
         connectedUsers[userId].emit('accountDeleted');
         delete connectedUsers[userId];
@@ -275,7 +260,7 @@ app.post('/api/delete-account', verifyToken, (req, res) => {
 // --- Socket.io Handlers: Real-time Communication ---
 io.on('connection', (socket) => {
     let currentUser = null;
-    let currentChatId = 0; // 0 means 'Friends' view
+    let currentChatId = 0; 
     let isChatDM = true;
 
     socket.on('authenticate', (token) => {
@@ -283,14 +268,12 @@ io.on('connection', (socket) => {
             const decoded = jwt.verify(token, JWT_SECRET);
             currentUser = getUserById(decoded.userId);
             if (currentUser) {
-                // Join the user's private room and register the socket
                 socket.join(`user_${currentUser.id}`);
                 connectedUsers[currentUser.id] = socket;
                 
-                // 1. Get friends and their DM channel IDs
+                // --- ИСПРАВЛЕНИЕ: Перезагрузка данных при аутентификации для исправления кнопок заявок/друзей
                 const userFriends = (friends[currentUser.id] || []).map(friendId => {
                     const friend = getUserById(friendId);
-                    // Ensure DM channel exists
                     const dmChannel = createDMChannel(currentUser.id, friendId);
 
                     return {
@@ -301,10 +284,10 @@ io.on('connection', (socket) => {
                     };
                 });
                 
-                // 2. Get incoming friend requests
                 const incomingRequests = Object.keys(friendRequests).filter(key => {
                     const requesterId = parseInt(key);
-                    return friendRequests[requesterId] && friendRequests[requorterId][currentUser.id] === 'pending';
+                    // Проверяем, что запрос существует и имеет статус 'pending'
+                    return friendRequests[requesterId] && friendRequests[requesterId][currentUser.id] === 'pending';
                 }).map(requesterId => {
                     const requester = getUserById(parseInt(requesterId));
                     return {
@@ -314,7 +297,7 @@ io.on('connection', (socket) => {
                     };
                 });
                 
-                // 3. Set active chat if none is set
+                // Если нет активного чата, выбираем первый DM канал
                 if (currentChatId === 0 && userFriends.length > 0) {
                      currentChatId = userFriends[0].channelId;
                 }
@@ -336,7 +319,7 @@ io.on('connection', (socket) => {
                 socket.disconnect();
             }
         } catch (e) {
-            socket.emit('requestError', 'Invalid token.');
+            socket.emit('requestError', 'Invalid token.'); // Эту ошибку мы хотим исправить
             socket.disconnect();
         }
     });
@@ -344,7 +327,6 @@ io.on('connection', (socket) => {
     socket.on('joinChat', ({ newId, isDM }) => {
         if (!currentUser || !isDM) return socket.emit('requestError', 'Invalid chat request.');
         
-        // Leave previous room
         if (currentChatId !== 0) {
              socket.leave(`channel_${currentChatId}`);
         }
@@ -357,10 +339,8 @@ io.on('connection', (socket) => {
             
             socket.emit('chatChanged', { newId, isDM: true });
             
-            // Send message history (persistence!)
             socket.emit('messageHistory', newChannel.messages);
         } else {
-            // Revert to 'Friends' view
             currentChatId = 0; 
             isChatDM = true;
             socket.emit('chatChanged', { newId: 0, isDM: true });
@@ -385,10 +365,8 @@ io.on('connection', (socket) => {
             isDM: 1
         };
 
-        // Save message to channel history
         channel.messages.push(message);
 
-        // Broadcast to DM room
         io.to(`channel_${currentChatId}`).emit('newMessage', message);
     });
 
@@ -405,24 +383,43 @@ io.on('connection', (socket) => {
         const isFriend = (friends[currentUser.id] || []).includes(recipient.id);
         if (isFriend) return socket.emit('requestError', 'You are already friends with this user.');
         
-        // Check for existing pending request (sender -> recipient)
         friendRequests[currentUser.id] = friendRequests[currentUser.id] || {};
         if (friendRequests[currentUser.id][recipient.id] === 'pending') {
             return socket.emit('requestError', 'Friend request already sent.');
         }
 
-        // Check for incoming request (recipient -> sender)
         friendRequests[recipient.id] = friendRequests[recipient.id] || {};
         if (friendRequests[recipient.id][currentUser.id] === 'pending') {
-             // If recipient already sent request, auto-accept it.
-             return socket.emit('requestError', 'You have an incoming request from this user. Accept it instead.');
+             // Если получатель уже отправил запрос, автоматически принимаем его.
+             
+             // 1. Добавляем в друзья
+             friends[currentUser.id] = friends[currentUser.id] || [];
+             friends[recipient.id] = friends[recipient.id] || [];
+             friends[currentUser.id].push(recipient.id);
+             friends[recipient.id].push(currentUser.id);
+             
+             // 2. Создаем канал и удаляем запрос
+             const dmChannel = createDMChannel(currentUser.id, recipient.id);
+             delete friendRequests[recipient.id][currentUser.id];
+             
+             socket.emit('requestSuccess', `Automatically accepted request from ${recipientUsername}.`);
+             if (connectedUsers[recipient.id]) {
+                 connectedUsers[recipient.id].emit('friendRequestAccepted', {
+                     userId: currentUser.id,
+                     username: currentUser.username,
+                     avatar: currentUser.avatar,
+                     channelId: dmChannel.id
+                 });
+             }
+             // Переаутентификация для обновления списка друзей у себя
+             socket.emit('authenticate', generateToken(currentUser)); 
+             return;
         }
         
         // Save new request
         friendRequests[currentUser.id][recipient.id] = 'pending';
         socket.emit('requestSuccess', `Friend request sent to ${recipientUsername}.`);
 
-        // Notify recipient if they are online
         if (connectedUsers[recipient.id]) {
             connectedUsers[recipient.id].emit('friendRequestReceived', {
                 userId: currentUser.id,
@@ -440,14 +437,12 @@ io.on('connection', (socket) => {
 
         if (!sender) return socket.emit('requestError', 'Sender not found.');
 
-        // Must have a pending request from the sender
         friendRequests[senderId] = friendRequests[senderId] || {};
         if (friendRequests[senderId][recipientId] !== 'pending') {
             return socket.emit('requestError', 'No pending request from this user.');
         }
 
         if (action === 'accept') {
-            // Add to friends list
             friends[senderId] = friends[senderId] || [];
             friends[recipientId] = friends[recipientId] || [];
 
@@ -458,15 +453,12 @@ io.on('connection', (socket) => {
                 friends[recipientId].push(senderId);
             }
             
-            // Ensure DM channel is created
             const dmChannel = createDMChannel(senderId, recipientId);
             
-            // Remove request
             delete friendRequests[senderId][recipientId];
 
             socket.emit('requestSuccess', `Accepted request from ${sender.username}.`);
             
-            // Notify sender
             if (connectedUsers[senderId]) {
                 connectedUsers[senderId].emit('friendRequestAccepted', {
                     userId: recipientId,
@@ -476,17 +468,12 @@ io.on('connection', (socket) => {
                 });
             }
             
-            // Re-authenticate to update client friend list
+            // --- ИСПРАВЛЕНИЕ: Переаутентификация для обновления списков друзей
             socket.emit('authenticate', generateToken(currentUser)); 
 
         } else if (action === 'reject') {
             delete friendRequests[senderId][recipientId];
             socket.emit('requestSuccess', `Rejected request from ${sender.username}.`);
-            
-            // Notify sender (optional)
-            if (connectedUsers[senderId]) {
-                 connectedUsers[senderId].emit('requestError', `${currentUser.username} declined your request.`);
-            }
         }
     });
 
@@ -494,7 +481,6 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         if (currentUser && connectedUsers[currentUser.id]) {
             delete connectedUsers[currentUser.id];
-            // You could emit a status update here if you were tracking online status globally
         }
     });
 });

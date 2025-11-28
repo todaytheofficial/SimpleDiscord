@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoCord Messenger</title>
+    <title>NeoCord Messenger (Friends Only)</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -202,7 +202,7 @@
         
         let friends = []; 
         let pendingRequests = []; 
-        let dms = {}; 
+        let dms = {}; // { friendUserId: { channelId: 1001 } }
         
         // --- GUI Elements ---
         const authScreen = document.getElementById('auth-screen');
@@ -210,15 +210,19 @@
         const appContainer = document.getElementById('app-container');
         const messagesContainer = document.getElementById('messages-container');
         const input = document.getElementById('input');
-        const messageForm = document.getElementById('form'); // New reference for chat form
+        const messageForm = document.getElementById('form');
         const myAvatarEl = document.getElementById('my-avatar');
         const myUsernameEl = document.getElementById('my-username');
         const currentChatTitleEl = document.getElementById('current-chat-title');
         const dmListContainer = document.getElementById('dm-list-container');
-        const userProfileBar = document.getElementById('user-profile-bar'); 
         const statusIndicatorEl = document.querySelector('.status-indicator');
         const openSettingsBtn = document.getElementById('open-settings-btn');
         const authSwitchText = document.getElementById('auth-switch-text');
+        
+        const showFriendsBtn = document.getElementById('show-friends-btn');
+        const showRequestsBtn = document.getElementById('show-requests-btn');
+        const currentFriendsView = document.getElementById('current-friends-view');
+        const incomingRequestsView = document.getElementById('incoming-requests-view');
         
         const startDmBtn = document.getElementById('start-dm-btn');
         const submitStartDmBtn = document.getElementById('submit-start-dm');
@@ -251,8 +255,7 @@
             });
         }
         
-        function openModal(id, userId = currentUserId) {
-            if (id === 'profile-modal') { loadProfileData(userId); }
+        function openModal(id) {
             if (id === 'settings-modal') { loadSettingsData(); } 
             document.getElementById(id).style.display = 'block';
         }
@@ -315,7 +318,6 @@
                     }
                     updateGUI();
                  }
-                 // Re-authenticate to refresh friend lists/names
                  socket.emit('authenticate', token); 
             });
             
@@ -332,11 +334,8 @@
                 
                 updateChatHeader(currentChatId, isChatDM);
                 if (data.activeChatId !== 0) {
-                    // Automatically load history for the active chat
-                    const channel = getChannelById(currentChatId);
-                    if (channel) {
-                        socket.emit('joinChat', { newId: currentChatId, isDM: true });
-                    }
+                    // Automatic history loading
+                    socket.emit('joinChat', { newId: currentChatId, isDM: true });
                 } else {
                     setActiveFriendsView('friends'); 
                 }
@@ -351,6 +350,7 @@
             socket.on('friendRequestAccepted', (data) => {
                 alert(`${data.username} accepted your friend request!`);
                 
+                // Update lists
                 pendingRequests = pendingRequests.filter(req => req.userId != data.userId);
                 renderRequests();
 
@@ -362,7 +362,6 @@
             socket.on('chatChanged', (data) => {
                 currentChatId = data.newId;
                 isChatDM = data.isDM;
-                // Re-render DMs to show active state
                 renderDMs(); 
                 updateChatHeader(currentChatId, isChatDM);
             });
@@ -377,7 +376,6 @@
         }
         
         function displayMessage(msg, isHistory = false) {
-            // ... (unchanged displayMessage function) ...
             const item = createElement('div', 'message');
             
             const avatarImg = createElement('img', 'avatar');
@@ -387,7 +385,7 @@
             const contentDiv = createElement('div', 'message-content');
             
             const header = createElement('div');
-            header.innerHTML = `<strong>${msg.username}</strong> <span class="timestamp">${new Date(msg.timestamp).toLocaleTimeString()}</span>`;
+            header.innerHTML = `<strong>${msg.username}</strong> <span class="timestamp">${new Date(msg.timestamp).toLocaleTimeString('en-US')}</span>`;
             contentDiv.appendChild(header);
             
             const text = createElement('p', '', msg.content);
@@ -446,7 +444,6 @@
         }
         
         function renderRequests() {
-             // ... (unchanged renderRequests function, using pendingRequests array) ...
             const list = document.getElementById('incoming-requests-list');
             list.innerHTML = '';
             document.getElementById('request-count').textContent = pendingRequests.length;
@@ -474,7 +471,14 @@
             if (emit) {
                 socket.emit('joinChat', { newId: id, isDM: isDM });
             }
-            renderDMs(); // Highlight active chat
+            renderDMs();
+        }
+        
+        function setActiveFriendsView(view) {
+             showFriendsBtn.classList.toggle('active', view === 'friends');
+             showRequestsBtn.classList.toggle('active', view === 'requests');
+             currentFriendsView.style.display = view === 'friends' ? 'block' : 'none';
+             incomingRequestsView.style.display = view === 'requests' ? 'block' : 'none';
         }
         
         // --- 4. PROFILE AND SETTINGS LOGIC ---
@@ -497,19 +501,10 @@
             document.querySelector('.setting-item[data-section="my-account"]').classList.add('active');
         }
 
-        function getChannelById(id) {
-            for (const key in dms) {
-                if (dms[key].channelId === id) {
-                    return dms[key];
-                }
-            }
-            return null;
-        }
-
-        // --- Event Listeners (FIX for not working buttons) ---
+        // --- Event Listeners ---
         
         function initializeListeners() {
-             // Load initial theme
+            // Load initial theme
             if (localStorage.getItem('theme')) { setTheme(localStorage.getItem('theme')); } else { setTheme('dark'); }
             
             // --- AUTH/APP INIT ---
@@ -517,15 +512,12 @@
             
             authForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
-                const username = document.getElementById('auth-username').value;
-                const password = document.getElementById('auth-password').value;
                 const endpoint = isRegisterMode ? '/api/register' : '/api/login';
-                let body = isRegisterMode ? new FormData(authForm) : JSON.stringify({ username, password });
                 
                 try {
                     const response = await fetch(API_URL + endpoint, {
                         method: 'POST',
-                        body: body,
+                        body: new FormData(authForm),
                         headers: isRegisterMode ? {} : { 'Content-Type': 'application/json' }
                     });
                     const data = await response.json();
@@ -562,8 +554,8 @@
             // Start chat form listener
             messageForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                if (input.value && socket && currentChatId !== 0) {
-                    socket.emit('chat message', { content: input.value });
+                if (input.value.trim() && socket && currentChatId !== 0) {
+                    socket.emit('chat message', { content: input.value.trim() });
                     input.value = '';
                 }
             });
@@ -572,6 +564,10 @@
             window.onclick = function(event) {
                 if (event.target.classList.contains('modal')) { event.target.style.display = "none"; }
             }
+            
+            // --- FRIEND NAVIGATION ---
+            showFriendsBtn.addEventListener('click', () => setActiveFriendsView('friends'));
+            showRequestsBtn.addEventListener('click', () => setActiveFriendsView('requests'));
             
             // --- ADD FRIEND MODAL ---
             startDmBtn.addEventListener('click', () => openModal('start-dm-modal'));
@@ -610,16 +606,10 @@
             // UPDATE PROFILE LOGIC
             updateProfileBtn.addEventListener('click', async () => {
                 const newUsername = newUsernameInput.value.trim();
-                const avatarFile = newAvatarFile.files[0];
-
-                if (!newUsername) {
-                    return alert('Username cannot be empty.');
-                }
-
                 const formData = new FormData();
                 formData.append('newUsername', newUsername);
-                if (avatarFile) {
-                    formData.append('avatar', avatarFile);
+                if (newAvatarFile.files[0]) {
+                    formData.append('avatar', newAvatarFile.files[0]);
                 }
 
                 try {
@@ -634,12 +624,7 @@
                     if (response.ok) {
                         alert('Profile updated successfully!');
                         closeModal('settings-modal');
-                        
-                        if (data.newUsername) { currentUsername = data.newUsername; localStorage.setItem('username', currentUsername); }
-                        if (data.newAvatar) { currentAvatar = data.newAvatar; localStorage.setItem('avatar', currentAvatar); }
-                        updateGUI();
-                        socket.emit('authenticate', token); 
-                        
+                        // Server sends userUpdateInfo, which triggers GUI update
                     } else { alert(`Update failed: ${data.message || 'Server error'}`); }
                 } catch (error) { alert('Network error during profile update.'); }
             });
@@ -656,7 +641,7 @@
                         const data = await response.json();
                         alert(`Deletion failed: ${data.message || 'Server error'}`);
                     }
-                    // Success handled by socket.on('accountDeleted')
+                    // Success is handled by socket
                 } catch (error) { alert('Network error during account deletion.'); }
             });
 
@@ -687,6 +672,10 @@
                 if (socket) {
                     socket.emit('handleFriendRequest', { userId, action });
                 }
+                
+                // Remove request from UI immediately
+                pendingRequests = pendingRequests.filter(req => req.userId !== userId);
+                renderRequests();
             });
         }
         
