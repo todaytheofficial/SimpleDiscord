@@ -1,484 +1,505 @@
-// server.js
+// --- Server Setup and Dependencies ---
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io');
-const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcryptjs');
+const socketio = require('socket.io');
 const jwt = require('jsonwebtoken');
-const multer = require('multer'); 
-const path = require('path');    
-const fs = require('fs');        
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketio(server);
 
-// --- CONFIGURATION ---
-const JWT_SECRET = process.env.JWT_SECRET || 'CodeTheApp$#MYscordsecret453@#@$@#_$#__$@#$_%%$%$^#^&$*#%^*#$%#^$%_#$_@ygdfsgdfsj@#$@#43_#$@$@#$@'; 
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = 'CodeTheApp$#MYscordsecret453@#@$@#_$#__$@#$_%%$%$^#^&$*#%^*#$%#^$%_#$_@ygdfsgdfsj@#$@#43_#$@$@#$@'; // CHANGE THIS IN PRODUCTION!
 
-const db = new sqlite3.Database('chaoticord.db', (err) => {
-    if (err) { console.error('SQLite connection error:', err.message); } 
-    else { console.log('SQLite successfully connected.'); initializeDatabase(); }
-});
+// --- Middleware and Setup ---
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// Serve static files from the root and 'img' folder
+app.use(express.static(path.join(__dirname))); 
 
-// Setup directories
-const UPLOAD_DIR = path.join(__dirname, 'public', 'uploads');
-const IMG_DIR = path.join(__dirname, 'public', 'img');
-if (!fs.existsSync(UPLOAD_DIR)){ fs.mkdirSync(UPLOAD_DIR, { recursive: true }); }
-if (!fs.existsSync(IMG_DIR)){ fs.mkdirSync(IMG_DIR, { recursive: true }); }
+// Create folders for uploads and default images
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR);
+}
+// Serve uploaded files from /uploads route
+app.use('/uploads', express.static(UPLOAD_DIR));
 
-// --- MULTER CONFIGURATION (File Upload) ---
+// Multer storage configuration for file uploads
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => { cb(null, UPLOAD_DIR); },
+    destination: (req, file, cb) => {
+        cb(null, UPLOAD_DIR);
+    },
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+        // Use user ID (if available) and timestamp for unique filename
+        const userId = req.user ? req.user.userId : 'temp'; 
+        cb(null, `${userId}_${Date.now()}${path.extname(file.originalname)}`);
     }
 });
-
 const upload = multer({ 
-    storage: storage,
+    storage: storage, 
     limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
     fileFilter: (req, file, cb) => {
-        const filetypes = /jpeg|jpg|png|gif/;
-        const mimetype = filetypes.test(file.mimetype);
-        const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        if (mimetype && extname) { return cb(null, true); }
-        cb(new Error('Only JPEG, PNG, GIF files are allowed!'));
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
     }
-}).single('avatar'); 
+}); 
 
-// --- DB HELPER FUNCTIONS (Promises) ---
-const dbRun = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) {
-            if (err) reject(err);
-            else resolve(this);
-        });
-    });
-};
-const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-        });
-    });
-};
-const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-        });
-    });
+// --- In-Memory Database Simulation ---
+// NOTE: This data structure is volatile and resets on server restart.
+let users = [
+    { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png' },
+    { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png' }
+];
+let channels = []; // DM Channels will be stored here
+let channelIdCounter = 1001; 
+let messageIdCounter = 1;
+
+// Stores ID of the receiver and status: { senderId: { receiverId: 'pending'|'accepted' } }
+let friendRequests = {}; 
+
+// Stores friend relationships: { userId: [friendId1, friendId2] }
+let friends = {
+    101: [102], 
+    102: [101]  
 };
 
+// Maps two user IDs to a single DM channel ID: { user1Id: { user2Id: channelId } }
+let userDMChannels = {}; 
+// Stores active socket connections: { userId: socket }
+let connectedUsers = {}; 
 
-// --- DATABASE INITIALIZATION ---
-async function initializeDatabase() {
-    try {
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE,
-                password TEXT,
-                avatar TEXT DEFAULT '/img/anon_blue.png', 
-                status TEXT DEFAULT 'offline',
-                current_chat_id INTEGER DEFAULT 1,
-                is_dm_active INTEGER DEFAULT 0
-            );
-        `);
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS dm_channels (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user1_id INTEGER,
-                user2_id INTEGER,
-                UNIQUE(user1_id, user2_id), 
-                FOREIGN KEY (user1_id) REFERENCES users(id),
-                FOREIGN KEY (user2_id) REFERENCES users(id)
-            );
-        `);
-        await dbRun(`
-            CREATE TABLE IF NOT EXISTS channels (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE,
-                is_general INTEGER DEFAULT 0 
-            );
-        `);
-         await dbRun(`
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                channel_id INTEGER,
-                username TEXT,
-                content TEXT,
-                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                avatar TEXT,
-                is_dm INTEGER DEFAULT 0,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            );
-        `);
-        
-        await dbRun(`
-            INSERT OR IGNORE INTO channels (id, name, is_general) 
-            VALUES (1, 'general', 1);
-        `);
-        console.log('SQLite: Tables are ready.');
-    } catch (err) {
-        console.error('Error creating tables:', err.message);
-    }
+// --- Utility Functions ---
+
+/** Generates a JWT for a user. */
+function generateToken(user) {
+    return jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
 }
 
-// Middleware
-app.use(express.json());
-app.use(express.static('public')); 
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/index.html');
-});
+/** Middleware to verify JWT from request header. */
+function verifyToken(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
 
-// Anonymous avatar generator
-const generateAnonymousAvatar = () => {
-    const avatars = ['/img/anon_blue.png', '/img/anon_green.png', '/img/anon_red.png', '/img/anon_yellow.png'];
-    return avatars[Math.floor(Math.random() * avatars.length)];
-};
+    const token = authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Invalid token format' });
 
-// Storage for User ID -> Socket ID mapping
-const userSocketMap = {}; 
-
-// --- EXPRESS ROUTES (API) ---
-
-app.post('/api/register', (req, res) => {
-    upload(req, res, async (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: 'Upload error: ' + err.message });
-        } else if (err) {
-            return res.status(400).json({ message: 'Error: ' + err.message });
-        }
-
-        const { username, password } = req.body; 
-        if (!username || !password) {
-            if (req.file) fs.unlinkSync(req.file.path);
-            return res.status(400).json({ message: 'Username and password are required.' });
-        }
-        
-        let userAvatar = req.file ? '/uploads/' + req.file.filename : generateAnonymousAvatar();
-        
-        try {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            
-            await dbRun('INSERT INTO users (username, password, avatar) VALUES (?, ?, ?)', [username, hashedPassword, userAvatar]);
-            res.status(201).json({ message: 'Registration successful.' });
-        } catch (error) {
-            if (req.file) fs.unlinkSync(req.file.path); 
-            if (error.message.includes('UNIQUE constraint failed')) {
-                return res.status(400).json({ message: 'This username is already taken.' });
-            }
-            res.status(500).json({ message: 'Registration failed.' });
-        }
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(401).json({ message: 'Token is invalid or expired' });
+        req.user = decoded;
+        next();
     });
-});
+}
 
-app.post('/api/login', async (req, res) => {
+/** Finds a user by ID. */
+function getUserById(id) {
+    return users.find(u => u.id === id);
+}
+
+/** Finds a user by username. */
+function getUserByUsername(username) {
+    return users.find(u => u.username === username);
+}
+
+/** Finds a channel (DM) by ID. */
+function getChannelById(id) {
+    return channels.find(c => c.id === id);
+}
+
+/** Creates a DM channel between two users if one doesn't exist. */
+function createDMChannel(user1Id, user2Id) {
+    const existingDmId = userDMChannels[user1Id]?.[user2Id] || userDMChannels[user2Id]?.[user1Id];
+    if (existingDmId) {
+        const existingChannel = getChannelById(existingDmId);
+        if (existingChannel) return existingChannel;
+    }
+
+    // Create new channel
+    const channelName = `dm_${user1Id}_${user2Id}`;
+    const channel = {
+        id: channelIdCounter++,
+        name: channelName,
+        isDM: true,
+        messages: [], // Message history saved here
+        members: [user1Id, user2Id]
+    };
+    channels.push(channel);
+
+    // Update map
+    userDMChannels[user1Id] = userDMChannels[user1Id] || {};
+    userDMChannels[user2Id] = userDMChannels[user2Id] || {};
+    userDMChannels[user1Id][user2Id] = channel.id;
+    userDMChannels[user2Id][user1Id] = channel.id;
+
+    return channel;
+}
+
+// --- API Endpoints: Auth, Profile, and Settings ---
+
+/** POST /api/register - Register a new user. */
+app.post('/api/register', upload.single('avatar'), (req, res) => {
     const { username, password } = req.body;
-    try {
-        const user = await dbGet('SELECT * FROM users WHERE username = ?', [username]);
+    if (!username || !password) return res.status(400).json({ message: 'Username and password required' });
+    if (getUserByUsername(username)) return res.status(400).json({ message: 'Username already taken' });
 
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).json({ message: 'Invalid username or password.' });
-        }
-
-        const token = jwt.sign({ userId: user.id, username: user.username }, JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, userId: user.id, username: user.username, avatar: user.avatar });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error during login.' });
-    }
+    const newUser = {
+        id: users.length + 101,
+        username: username,
+        password: password, 
+        // Avatar path accessible via /uploads or default /img
+        avatar: req.file ? `/uploads/${req.file.filename}` : '/img/anon_blue.png'
+    };
+    users.push(newUser);
+    res.status(201).json({ message: 'User registered successfully.' });
 });
 
+/** POST /api/login - Authenticate and return JWT. */
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = getUserByUsername(username);
+    
+    if (!user || user.password !== password) { 
+        return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user);
+    res.json({ token, userId: user.id, username: user.username, avatar: user.avatar });
+});
+
+/** GET /api/profile/:userId - Get public profile data. */
 app.get('/api/profile/:userId', async (req, res) => {
-    try {
-        const userId = parseInt(req.params.userId, 10);
-        const user = await dbGet('SELECT id, username, avatar, status FROM users WHERE id = ?', [userId]);
-        if (!user) return res.status(404).json({ message: 'User not found.' });
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error.' });
+    const userId = parseInt(req.params.userId);
+    const user = getUserById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    const status = connectedUsers[userId] ? 'online' : 'offline';
+
+    res.json({ 
+        userId: user.id, 
+        username: user.username, 
+        avatar: user.avatar,
+        status: status 
+    });
+});
+
+/** POST /api/update-profile - Update username and/or avatar. */
+app.post('/api/update-profile', verifyToken, upload.single('avatar'), (req, res) => {
+    const userId = req.user.userId;
+    const user = getUserById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { newUsername } = req.body;
+    let updatedUsername = user.username;
+    let updatedAvatar = user.avatar;
+
+    // Handle Username Update
+    if (newUsername && newUsername !== user.username) {
+        if (getUserByUsername(newUsername)) {
+            return res.status(400).json({ message: 'New username is already taken.' });
+        }
+        user.username = newUsername;
+        updatedUsername = newUsername;
     }
-});
 
-app.post('/api/update_profile', (req, res) => {
-    upload(req, res, async (err) => {
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({ message: 'Avatar upload error: ' + err.message });
-        } else if (err) {
-            return res.status(400).json({ message: 'Error: ' + err.message });
+    // Handle Avatar Update
+    if (req.file) {
+        // Delete old avatar file if it's not a default one
+        if (user.avatar && !user.avatar.startsWith('/img/')) { 
+             try { fs.unlinkSync(path.join(__dirname, user.avatar)); } catch (e) { /* silent fail */ }
         }
+        user.avatar = `/uploads/${req.file.filename}`; 
+        updatedAvatar = user.avatar;
+    }
 
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            if (req.file) fs.unlinkSync(req.file.path);
-            return res.status(401).json({ message: 'Authentication required.' });
-        }
+    // Notify connected clients (including self) about the change
+    io.emit('userUpdateInfo', { 
+        userId: user.id, 
+        newUsername: updatedUsername, 
+        newAvatar: updatedAvatar 
+    });
 
-        try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            const userId = decoded.userId;
-            const { newUsername } = req.body; 
-            
-            let updates = [];
-            let params = [];
-            let usernameChanged = false;
-            let newAvatarPath = null;
-            
-            // 1. Username Update
-            if (newUsername && newUsername !== decoded.username) {
-                 const existing = await dbGet('SELECT id FROM users WHERE username = ? AND id != ?', [newUsername, userId]);
-                 if (existing) {
-                    if (req.file) fs.unlinkSync(req.file.path);
-                    return res.status(400).json({ message: 'This username is already taken.' });
-                 }
-                 updates.push('username = ?');
-                 params.push(newUsername);
-                 usernameChanged = true;
-            }
-
-            // 2. Avatar Update
-            if (req.file) {
-                newAvatarPath = '/uploads/' + req.file.filename;
-                updates.push('avatar = ?');
-                params.push(newAvatarPath);
-                
-                const oldUser = await dbGet('SELECT avatar FROM users WHERE id = ?', [userId]);
-                if (oldUser.avatar && oldUser.avatar.startsWith('/uploads/')) {
-                    const oldPath = path.join(__dirname, 'public', oldUser.avatar);
-                    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-                }
-            }
-
-
-            if (updates.length > 0) {
-                params.push(userId);
-                await dbRun(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
-                
-                let responseData = { message: 'Profile updated. Please refresh the page.' };
-                
-                if (usernameChanged) {
-                    const newToken = jwt.sign({ userId: userId, username: newUsername }, JWT_SECRET, { expiresIn: '1d' });
-                    responseData.username = newUsername;
-                    responseData.token = newToken;
-                }
-                if (newAvatarPath) {
-                    responseData.avatar = newAvatarPath;
-                }
-                
-                io.emit('userUpdateInfo', { userId: userId, newUsername: newUsername, newAvatar: newAvatarPath });
-
-                return res.json(responseData);
-            }
-
-            res.status(400).json({ message: 'No data to update.' });
-
-        } catch (error) {
-            if (req.file) fs.unlinkSync(req.file.path);
-            res.status(401).json({ message: 'Invalid token.' });
-        }
+    res.json({ 
+        message: 'Profile updated',
+        newUsername: updatedUsername,
+        newAvatar: updatedAvatar
     });
 });
 
+/** POST /api/delete-account - Permanently delete the user account. */
+app.post('/api/delete-account', verifyToken, (req, res) => {
+    const userId = req.user.userId;
+    const userIndex = users.findIndex(u => u.id === userId);
 
-// --- SOCKET.IO LOGIC ---
+    if (userIndex === -1) {
+        return res.status(404).json({ message: 'Account not found.' });
+    }
 
-const getDmChannels = async (userId) => {
-    const dms = await dbAll(`
-        SELECT 
-            dc.id as channelId,
-            u.id as userId,
-            u.username,
-            u.avatar
-        FROM dm_channels dc
-        JOIN users u ON u.id = CASE WHEN dc.user1_id = ? THEN dc.user2_id ELSE dc.user1_id END
-        WHERE dc.user1_id = ? OR dc.user2_id = ?
-    `, [userId, userId, userId]);
+    const deletedUser = users.splice(userIndex, 1)[0];
 
-    return dms.reduce((acc, dm) => {
-        acc[dm.userId] = { channelId: dm.channelId, username: dm.username, avatar: dm.avatar };
-        return acc;
-    }, {});
-};
+    // Clean up friends, requests, and DM channels related to the deleted user
+    delete friends[userId];
+    for (const friendId in friends) {
+        friends[friendId] = friends[friendId].filter(id => id !== userId);
+    }
+    delete friendRequests[userId];
+    for (const senderId in friendRequests) {
+        delete friendRequests[senderId][userId];
+    }
+    for (const partnerId in userDMChannels[userId]) {
+        const channelIdToDelete = userDMChannels[userId][partnerId];
+        channels = channels.filter(c => c.id !== channelIdToDelete);
+    }
+    delete userDMChannels[userId];
+    
+    // Remove avatar file
+    if (deletedUser.avatar && !deletedUser.avatar.startsWith('/img/')) {
+        try { fs.unlinkSync(path.join(__dirname, deletedUser.avatar)); } catch (e) { /* silent fail */ }
+    }
 
-const loadChatHistory = async (chatId, isDM) => {
-    const history = await dbAll('SELECT user_id, username, content, timestamp, avatar FROM messages WHERE channel_id = ? AND is_dm = ? ORDER BY timestamp ASC LIMIT 50', [chatId, isDM ? 1 : 0]);
-    return history;
-};
+    // Notify the user via socket to log out
+    if (connectedUsers[userId]) {
+        connectedUsers[userId].emit('accountDeleted');
+        delete connectedUsers[userId];
+    }
+    
+    res.json({ message: 'Account successfully deleted.' });
+});
 
+
+// --- Socket.io Handlers: Real-time Communication ---
 io.on('connection', (socket) => {
-    let currentUserId = null; 
-    let currentUsername = null;
-    let currentAvatar = null;
-    let currentChatId = 1; 
-    let isChatDM = false;
+    let currentUser = null;
+    let currentChatId = 0; // 0 means 'Friends' view
+    let isChatDM = true;
 
-    socket.on('authenticate', async (token) => {
-        if (!token) return socket.disconnect();
-
+    socket.on('authenticate', (token) => {
         try {
             const decoded = jwt.verify(token, JWT_SECRET);
-            currentUserId = decoded.userId;
-            currentUsername = decoded.username;
-            
-            // --- SERVER CONSOLE LOGGING ---
-            console.log(`[USER CONNECT] User authenticated: ID ${currentUserId} | Username: ${currentUsername} | Socket: ${socket.id}`);
-            // ------------------------------
-            
-            const user = await dbGet('SELECT avatar, current_chat_id, is_dm_active FROM users WHERE id = ?', [currentUserId]);
-            currentAvatar = user.avatar;
-            currentChatId = user.current_chat_id || 1;
-            isChatDM = user.is_dm_active == 1;
-            
-            if (userSocketMap[currentUserId] && userSocketMap[currentUserId] !== socket.id) {
-                 io.sockets.sockets.get(userSocketMap[currentUserId])?.disconnect(true);
+            currentUser = getUserById(decoded.userId);
+            if (currentUser) {
+                // Join the user's private room and register the socket
+                socket.join(`user_${currentUser.id}`);
+                connectedUsers[currentUser.id] = socket;
+                
+                // 1. Get friends and their DM channel IDs
+                const userFriends = (friends[currentUser.id] || []).map(friendId => {
+                    const friend = getUserById(friendId);
+                    // Ensure DM channel exists
+                    const dmChannel = createDMChannel(currentUser.id, friendId);
+
+                    return {
+                        userId: friend.id,
+                        username: friend.username,
+                        avatar: friend.avatar,
+                        channelId: dmChannel.id
+                    };
+                });
+                
+                // 2. Get incoming friend requests
+                const incomingRequests = Object.keys(friendRequests).filter(key => {
+                    const requesterId = parseInt(key);
+                    return friendRequests[requesterId] && friendRequests[requorterId][currentUser.id] === 'pending';
+                }).map(requesterId => {
+                    const requester = getUserById(parseInt(requesterId));
+                    return {
+                        userId: requester.id,
+                        username: requester.username,
+                        avatar: requester.avatar
+                    };
+                });
+                
+                // 3. Set active chat if none is set
+                if (currentChatId === 0 && userFriends.length > 0) {
+                     currentChatId = userFriends[0].channelId;
+                }
+                
+                if (currentChatId !== 0) {
+                     socket.join(`channel_${currentChatId}`);
+                }
+
+                socket.emit('initialData', {
+                    channels: [], 
+                    friends: userFriends,
+                    dms: userFriends.reduce((acc, f) => { acc[f.userId] = { channelId: f.channelId }; return acc; }, {}),
+                    pendingRequests: incomingRequests,
+                    activeChatId: currentChatId,
+                    isDM: true 
+                });
+            } else {
+                socket.emit('requestError', 'Authentication failed.');
+                socket.disconnect();
             }
-            userSocketMap[currentUserId] = socket.id;
-            
-            await dbRun('UPDATE users SET status = ? WHERE id = ?', ['online', currentUserId]);
-            
-            const history = await loadChatHistory(currentChatId, isChatDM);
-            socket.emit('messageHistory', history);
-
-            const channels = await dbAll('SELECT id, name FROM channels ORDER BY name ASC');
-            const dms = await getDmChannels(currentUserId);
-            
-            const roomName = `chat-${currentChatId}-${isChatDM ? 'dm' : 'channel'}`;
-            socket.join(roomName);
-            
-            socket.emit('initialChannels', { 
-                channels: channels, 
-                dms: dms,
-                activeChatId: currentChatId,
-                isDM: isChatDM
-            });
-            
-            io.emit('userStatusUpdate', { userId: currentUserId, username: currentUsername, status: 'online' });
-            
-        } catch (err) {
-            console.error(`Socket authentication failed: ${err.message}.`);
-            socket.disconnect(); 
-        }
-    });
-    
-    socket.on('joinChat', async (data) => {
-        if (!currentUserId) return;
-        
-        const { newId, isDM } = data;
-        const chatType = isDM ? 'dm' : 'channel';
-        const newChatId = parseInt(newId, 10);
-
-        socket.leave(`chat-${currentChatId}-${isChatDM ? 'dm' : 'channel'}`);
-        
-        currentChatId = newChatId;
-        isChatDM = isDM;
-        
-        socket.join(`chat-${currentChatId}-${chatType}`);
-        
-        await dbRun('UPDATE users SET current_chat_id = ?, is_dm_active = ? WHERE id = ?', [currentChatId, isDM ? 1 : 0, currentUserId]);
-        
-        const history = await loadChatHistory(currentChatId, isChatDM);
-        socket.emit('messageHistory', history);
-        socket.emit('chatChanged', { newId: currentChatId, isDM: isChatDM });
-    });
-    
-    socket.on('createChannel', async (channelName) => {
-        if (!currentUserId || channelName.trim() === '') return socket.emit('requestError', 'Channel name cannot be empty.');
-        
-        const cleanName = channelName.toLowerCase().replace(/\s+/g, '-');
-        try {
-            const result = await dbRun('INSERT INTO channels (name) VALUES (?)', [cleanName]);
-            
-            io.emit('newChannelCreated', { id: result.lastID, name: cleanName });
-            socket.emit('requestSuccess', `Channel #${cleanName} created.`);
-        } catch (error) {
-             socket.emit('requestError', 'A channel with this name already exists.');
+        } catch (e) {
+            socket.emit('requestError', 'Invalid token.');
+            socket.disconnect();
         }
     });
 
-    socket.on('startDM', async (recipientUsername) => {
-        if (!currentUserId || recipientUsername.trim() === '') return socket.emit('requestError', 'Username cannot be empty.');
-
-        const recipient = await dbGet('SELECT id, username, avatar FROM users WHERE username = ?', [recipientUsername]);
-        if (!recipient) return socket.emit('requestError', 'User not found.');
-        if (recipient.id === currentUserId) return socket.emit('requestError', 'Cannot start a DM with yourself.');
-
-        const user1_id = Math.min(currentUserId, recipient.id);
-        const user2_id = Math.max(currentUserId, recipient.id);
-
-        let dmChannel = await dbGet('SELECT id FROM dm_channels WHERE user1_id = ? AND user2_id = ?', [user1_id, user2_id]);
-
-        if (!dmChannel) {
-            const result = await dbRun('INSERT INTO dm_channels (user1_id, user2_id) VALUES (?, ?)', [user1_id, user2_id]);
-            dmChannel = { id: result.lastID };
+    socket.on('joinChat', ({ newId, isDM }) => {
+        if (!currentUser || !isDM) return socket.emit('requestError', 'Invalid chat request.');
+        
+        // Leave previous room
+        if (currentChatId !== 0) {
+             socket.leave(`channel_${currentChatId}`);
         }
         
-        const dmInfoForSender = { 
-            channelId: dmChannel.id, 
-            userId: recipient.id, 
-            username: recipient.username, 
-            avatar: recipient.avatar 
-        };
-        const dmInfoForRecipient = { 
-            channelId: dmChannel.id, 
-            userId: currentUserId, 
-            username: currentUsername, 
-            avatar: currentAvatar 
-        };
-
-        socket.emit('newDMStarted', dmInfoForSender);
-        const recipientSocketId = userSocketMap[recipient.id];
-        if (recipientSocketId) {
-            io.to(recipientSocketId).emit('newDMStarted', dmInfoForRecipient);
-        }
-        
-        socket.emit('requestSuccess', `DM with ${recipient.username} started.`);
-        socket.emit('joinChat', { newId: dmChannel.id, isDM: true });
-    });
-
-    socket.on('chat message', async (data) => {
-        if (!currentUserId || !data.content || data.content.trim() === '') return; 
-        
-        const { content, isDM } = data;
-        const dmFlag = isDM ? 1 : 0;
-        const timestamp = new Date().toISOString();
-
-        if (isDM) {
-            const dmCheck = await dbGet('SELECT id FROM dm_channels WHERE id = ? AND (user1_id = ? OR user2_id = ?)', [currentChatId, currentUserId, currentUserId]);
-            if (!dmCheck) return socket.emit('requestError', 'Error: You are not a member of this DM chat.');
+        const newChannel = getChannelById(newId);
+        if (newChannel && newChannel.isDM) {
+            socket.join(`channel_${newChannel.id}`);
+            currentChatId = newId;
+            isChatDM = true;
+            
+            socket.emit('chatChanged', { newId, isDM: true });
+            
+            // Send message history (persistence!)
+            socket.emit('messageHistory', newChannel.messages);
         } else {
-            const channelCheck = await dbGet('SELECT id FROM channels WHERE id = ?', [currentChatId]);
-            if (!channelCheck) return socket.emit('requestError', 'Error: Channel does not exist.');
+            // Revert to 'Friends' view
+            currentChatId = 0; 
+            isChatDM = true;
+            socket.emit('chatChanged', { newId: 0, isDM: true });
+            socket.emit('messageHistory', []);
         }
-
-        await dbRun('INSERT INTO messages (user_id, channel_id, username, content, timestamp, avatar, is_dm) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-            [currentUserId, currentChatId, currentUsername, content, timestamp, currentAvatar, dmFlag]);
-
-        const messageData = {
-            user_id: currentUserId, username: currentUsername, content: content, timestamp: timestamp, avatar: currentAvatar, channelId: currentChatId, isDM: isDM
-        };
-        
-        const roomName = `chat-${currentChatId}-${isDM ? 'dm' : 'channel'}`;
-        io.to(roomName).emit('newMessage', messageData); 
     });
 
+    socket.on('chat message', (data) => {
+        if (!currentUser || currentChatId === 0) return socket.emit('requestError', 'Select a friend to message.');
 
-    socket.on('disconnect', async () => {
-        if (currentUserId) {
-            console.log(`[USER DISCONNECT] User disconnected: ID ${currentUserId} | Username: ${currentUsername}`);
-            delete userSocketMap[currentUserId];
-            await dbRun('UPDATE users SET status = ? WHERE id = ?', ['offline', currentUserId]);
-            io.emit('userStatusUpdate', { userId: currentUserId, username: currentUsername, status: 'offline' });
+        const channel = getChannelById(currentChatId);
+        if (!channel || !channel.isDM) return socket.emit('requestError', 'Invalid DM channel.');
+
+        const message = {
+            id: messageIdCounter++,
+            channelId: currentChatId,
+            user_id: currentUser.id,
+            username: currentUser.username,
+            avatar: currentUser.avatar,
+            content: data.content,
+            timestamp: Date.now(),
+            isDM: 1
+        };
+
+        // Save message to channel history
+        channel.messages.push(message);
+
+        // Broadcast to DM room
+        io.to(`channel_${currentChatId}`).emit('newMessage', message);
+    });
+
+    // --- Friend Request Handlers ---
+
+    socket.on('sendFriendRequest', (recipientUsername) => {
+        if (!currentUser) return;
+        const recipient = getUserByUsername(recipientUsername);
+
+        if (!recipient || recipient.id === currentUser.id) {
+            return socket.emit('requestError', 'User not found or cannot send request to self.');
+        }
+
+        const isFriend = (friends[currentUser.id] || []).includes(recipient.id);
+        if (isFriend) return socket.emit('requestError', 'You are already friends with this user.');
+        
+        // Check for existing pending request (sender -> recipient)
+        friendRequests[currentUser.id] = friendRequests[currentUser.id] || {};
+        if (friendRequests[currentUser.id][recipient.id] === 'pending') {
+            return socket.emit('requestError', 'Friend request already sent.');
+        }
+
+        // Check for incoming request (recipient -> sender)
+        friendRequests[recipient.id] = friendRequests[recipient.id] || {};
+        if (friendRequests[recipient.id][currentUser.id] === 'pending') {
+             // If recipient already sent request, auto-accept it.
+             return socket.emit('requestError', 'You have an incoming request from this user. Accept it instead.');
+        }
+        
+        // Save new request
+        friendRequests[currentUser.id][recipient.id] = 'pending';
+        socket.emit('requestSuccess', `Friend request sent to ${recipientUsername}.`);
+
+        // Notify recipient if they are online
+        if (connectedUsers[recipient.id]) {
+            connectedUsers[recipient.id].emit('friendRequestReceived', {
+                userId: currentUser.id,
+                username: currentUser.username,
+                avatar: currentUser.avatar
+            });
+        }
+    });
+
+    socket.on('handleFriendRequest', ({ userId, action }) => {
+        if (!currentUser) return;
+        const senderId = userId; 
+        const recipientId = currentUser.id;
+        const sender = getUserById(senderId);
+
+        if (!sender) return socket.emit('requestError', 'Sender not found.');
+
+        // Must have a pending request from the sender
+        friendRequests[senderId] = friendRequests[senderId] || {};
+        if (friendRequests[senderId][recipientId] !== 'pending') {
+            return socket.emit('requestError', 'No pending request from this user.');
+        }
+
+        if (action === 'accept') {
+            // Add to friends list
+            friends[senderId] = friends[senderId] || [];
+            friends[recipientId] = friends[recipientId] || [];
+
+            if (!friends[senderId].includes(recipientId)) {
+                friends[senderId].push(recipientId);
+            }
+            if (!friends[recipientId].includes(senderId)) {
+                friends[recipientId].push(senderId);
+            }
+            
+            // Ensure DM channel is created
+            const dmChannel = createDMChannel(senderId, recipientId);
+            
+            // Remove request
+            delete friendRequests[senderId][recipientId];
+
+            socket.emit('requestSuccess', `Accepted request from ${sender.username}.`);
+            
+            // Notify sender
+            if (connectedUsers[senderId]) {
+                connectedUsers[senderId].emit('friendRequestAccepted', {
+                    userId: recipientId,
+                    username: currentUser.username,
+                    avatar: currentUser.avatar,
+                    channelId: dmChannel.id
+                });
+            }
+            
+            // Re-authenticate to update client friend list
+            socket.emit('authenticate', generateToken(currentUser)); 
+
+        } else if (action === 'reject') {
+            delete friendRequests[senderId][recipientId];
+            socket.emit('requestSuccess', `Rejected request from ${sender.username}.`);
+            
+            // Notify sender (optional)
+            if (connectedUsers[senderId]) {
+                 connectedUsers[senderId].emit('requestError', `${currentUser.username} declined your request.`);
+            }
+        }
+    });
+
+    // --- Disconnect ---
+    socket.on('disconnect', () => {
+        if (currentUser && connectedUsers[currentUser.id]) {
+            delete connectedUsers[currentUser.id];
+            // You could emit a status update here if you were tracking online status globally
         }
     });
 });
 
+// --- Server Start ---
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+    console.log(`Server running on http://localhost:${PORT}`);
 });

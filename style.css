@@ -1,0 +1,460 @@
+/* --- 🎨 NeoCord Style and Themes --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+
+/* ----------------------------------- */
+/* 1. THEME DEFINITIONS                */
+/* ----------------------------------- */
+
+/* Default Dark Theme (Discord-like) */
+:root, .theme-dark {
+    --bg-primary: #313338;   /* Main dark background */
+    --bg-secondary: #2b2d31; /* Panels (Left/Chat Header/Input) */
+    --bg-tertiary: #383a40;  /* Selection, hover */
+    --text-main: #f2f3f5;    /* Main white text */
+    --text-sub: #b5bcc3;     /* Secondary gray text */
+    --brand-color: #5865f2;  /* Discord Purple Accent */
+    --online-color: #3ba55d; /* Green */
+    --offline-color: #72767d;
+    --input-bg: #1e1f22;     /* Input field background */
+    --danger-color: #ed4245; /* Red */
+    --border-color: #1e1f22; /* Thin separator line */
+}
+
+/* Light Theme */
+.theme-light {
+    --bg-primary: #f2f2f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e5e5ea;
+    --text-main: #1c1c1e;
+    --text-sub: #636366;
+    --brand-color: #5865f2;
+    --online-color: #3ba55d;
+    --offline-color: #d1d1d6;
+    --input-bg: #e5e5ea;
+    --danger-color: #ff3b30;
+    --border-color: #d1d1d6;
+}
+
+/* Custom Soft Blue Theme (Pleasant for eyes) */
+.theme-custom {
+    --bg-primary: #2c3a47;   /* Dark Blue/Gray */
+    --bg-secondary: #3b4e5d; /* Slightly Lighter Panels */
+    --bg-tertiary: #4a6171;  /* Hover/Selection */
+    --text-main: #f0f8ff;    /* Off-White Text */
+    --text-sub: #aab5c1;     /* Subdued Gray Text */
+    --brand-color: #64b5f6;  /* Soft Blue Accent */
+    --online-color: #81c784; /* Soft Green */
+    --offline-color: #78909c;
+    --input-bg: #212c35;
+    --danger-color: #ef5350;
+    --border-color: #212c35; 
+}
+
+/* ----------------------------------- */
+/* 2. BASE STYLES AND LAYOUT           */
+/* ----------------------------------- */
+
+* {
+    box-sizing: border-box;
+}
+
+body { 
+    margin: 0; 
+    padding: 0; 
+    font-family: 'Inter', sans-serif; 
+    background-color: var(--bg-primary); 
+    color: var(--text-main); 
+    overflow: hidden; 
+}
+
+#app-container { 
+    display: grid; 
+    grid-template-columns: 260px 1fr; /* Friends Panel (Left) and Chat Area (Right) */
+    height: 100vh; 
+    overflow: hidden;
+}
+
+/* ----------------------------------- */
+/* 3. FRIENDS PANEL (LEFT)             */
+/* ----------------------------------- */
+
+#friends-channels-panel { 
+    grid-column: 1; 
+    background-color: var(--bg-secondary); 
+    padding: 15px 10px 15px 15px; 
+    overflow-y: hidden; 
+    display: flex; 
+    flex-direction: column;
+    border-right: 1px solid var(--border-color);
+}
+
+#friends-channels-panel h3 { 
+    color: var(--text-sub); 
+    font-size: 13px; 
+    text-transform: uppercase; 
+    margin: 25px 0 10px 0; 
+    font-weight: 700;
+    padding-left: 5px;
+}
+
+/* Search Bar */
+#friend-search-input {
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 15px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+}
+#friend-search-input::placeholder {
+    color: var(--text-sub);
+}
+
+/* Friends/Requests Header Navigation */
+#dm-section {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-right: 5px; 
+}
+
+#dm-section .friend-list-header {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 5px 0 5px 5px;
+    font-size: 15px;
+    font-weight: 600;
+}
+#dm-section .friend-list-header span {
+    color: var(--text-sub);
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+#dm-section .friend-list-header span i {
+    margin-right: 5px;
+}
+#dm-section .friend-list-header span.active {
+    color: var(--text-main);
+    background-color: var(--bg-tertiary);
+}
+
+/* Friend/DM Item List */
+.friend-item { 
+    padding: 8px 10px; 
+    display: flex; 
+    align-items: center; 
+    border-radius: 4px; 
+    cursor: pointer; 
+    margin-bottom: 2px; 
+    transition: background-color 0.15s;
+    font-size: 15px;
+}
+
+.friend-item.active { 
+    background-color: var(--bg-tertiary); 
+    color: var(--text-main); 
+}
+.friend-item:hover { 
+    background-color: var(--bg-tertiary); 
+}
+
+.friend-item img.avatar { 
+    width: 32px; 
+    height: 32px; 
+    margin-right: 10px; 
+    border-radius: 50%; 
+    flex-shrink: 0;
+}
+
+/* User Profile Bar (Bottom Left) */
+#user-profile-bar { 
+    margin-top: auto; 
+    padding: 10px; 
+    background-color: var(--border-color); 
+    display: flex; 
+    align-items: center; 
+    cursor: pointer;
+    border-radius: 4px;
+    margin-bottom: 0px;
+    transition: background-color 0.15s;
+}
+#user-profile-bar:hover {
+     background-color: var(--bg-tertiary);
+}
+#user-profile-bar .avatar { 
+    width: 32px; 
+    height: 32px; 
+    margin-right: 8px;
+    border-radius: 50%;
+}
+#user-profile-bar strong { font-size: 14px; font-weight: 600; }
+#user-profile-bar .status-indicator { 
+    width: 10px; height: 10px; border-radius: 50%; 
+    background-color: var(--online-color); 
+    margin-left: 5px;
+    flex-shrink: 0;
+}
+
+/* ----------------------------------- */
+/* 4. CHAT AREA (RIGHT)                */
+/* ----------------------------------- */
+
+#chat-area { 
+    grid-column: 2; 
+    display: flex; 
+    flex-direction: column; 
+    background-color: var(--bg-primary); 
+    position: relative; 
+}
+
+#chat-area header { 
+    padding: 15px 25px; 
+    border-bottom: 1px solid var(--border-color); 
+    background: var(--bg-secondary); 
+    color: var(--text-main); 
+    font-size: 17px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+#messages-container { 
+    flex-grow: 1; 
+    padding: 20px 25px; 
+    overflow-y: auto; 
+}
+
+.message { 
+    margin-bottom: 20px; 
+    padding-top: 5px; 
+    display: flex; 
+}
+
+.message-content { 
+    margin-left: 15px; 
+    line-height: 1.4;
+    word-break: break-word; /* Prevent long words from breaking layout */
+}
+
+.message strong { 
+    color: var(--text-main); 
+    margin-right: 8px; 
+    font-weight: 700; 
+}
+
+.timestamp { 
+    color: var(--text-sub); 
+    font-size: 12px; 
+    font-weight: 400;
+}
+
+.avatar { 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    background-color: var(--offline-color); 
+    flex-shrink: 0;
+}
+
+/* Input Form */
+#form { 
+    padding: 20px 25px; 
+    background-color: var(--bg-primary); 
+    flex-shrink: 0;
+}
+
+#form-inner { 
+    display: flex; 
+    background-color: var(--bg-secondary); 
+    border-radius: 8px; 
+    padding: 8px; 
+}
+
+#input { 
+    border: none; 
+    padding: 0 15px; 
+    flex-grow: 1; 
+    background: none; 
+    color: var(--text-main); 
+    outline: none; 
+    font-size: 15px; 
+}
+
+#form > #form-inner > button { 
+    background-color: var(--brand-color); 
+    color: white; 
+    border: none; 
+    padding: 8px 15px; 
+    border-radius: 6px; 
+    cursor: pointer; 
+    transition: background-color 0.2s; 
+    font-weight: 500;
+}
+#form > #form-inner > button:hover { 
+    background-color: color-mix(in srgb, var(--brand-color) 80%, black); 
+}
+
+/* ----------------------------------- */
+/* 5. MODALS AND SETTINGS              */
+/* ----------------------------------- */
+
+.modal { 
+    display: none; 
+    position: fixed; 
+    z-index: 1001; 
+    left: 0; 
+    top: 0; 
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.7); 
+}
+
+.modal-content { 
+    background-color: var(--bg-secondary); 
+    margin: 10% auto; 
+    padding: 30px; 
+    border-radius: 8px; 
+    width: 400px; 
+    max-width: 90%;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.5); 
+    color: var(--text-main); 
+    position: relative; /* Needed for absolute positioning of close button in settings */
+}
+
+.close { 
+    color: var(--text-sub); 
+    float: right; 
+    font-size: 28px; 
+    font-weight: bold; 
+    cursor: pointer; 
+}
+.close:hover { 
+    color: var(--text-main); 
+}
+
+.modal-input { 
+    width: 95%; 
+    padding: 12px; 
+    margin: 10px 0; 
+    background-color: var(--input-bg); 
+    border: 1px solid var(--border-color); 
+    color: var(--text-main); 
+    border-radius: 6px; 
+    outline: none; 
+}
+.modal-button { 
+    width: 100%; 
+    padding: 12px; 
+    margin-top: 15px; 
+    background-color: var(--brand-color); 
+    color: white; 
+    border: none; 
+    border-radius: 6px; 
+    font-size: 16px; 
+    cursor: pointer; 
+    transition: background-color 0.2s;
+}
+.modal-button:hover { 
+    background-color: color-mix(in srgb, var(--brand-color) 80%, black); 
+}
+.auth-switch { 
+    text-align: center; 
+    color: var(--brand-color); 
+    cursor: pointer; 
+    font-size: 14px; 
+    margin-top: 15px; 
+}
+
+/* Custom File Input Styling */
+.file-input-container {
+    border: 2px dashed var(--text-sub);
+    padding: 15px;
+    text-align: center;
+    border-radius: 8px;
+    margin: 10px 0;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    font-size: 14px;
+}
+.file-input-container:hover { 
+    border-color: var(--brand-color); 
+}
+
+/* --- Settings Modal Specifics --- */
+
+#settings-modal .modal-content {
+    margin: 5% auto;
+    width: 700px;
+    display: flex;
+    padding: 0; /* Remove padding from modal-content to apply it inside */
+}
+
+#settings-modal #settings-menu {
+    margin-top: 20px;
+}
+
+.setting-item {
+    padding: 8px 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    color: var(--text-sub);
+    font-weight: 500;
+}
+.setting-item:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-main);
+}
+.setting-item.active {
+    background-color: var(--brand-color);
+    color: white;
+}
+.logout-item {
+    color: var(--danger-color) !important;
+    border-top: 1px solid var(--border-color);
+    margin-top: 20px;
+    padding-top: 15px;
+}
+.logout-item:hover {
+    background-color: color-mix(in srgb, var(--danger-color) 80%, black);
+    color: white !important;
+}
+
+#settings-content {
+    padding: 30px;
+}
+
+/* Theme Option */
+.theme-option {
+    padding: 15px;
+    border: 2px solid var(--bg-tertiary);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 600;
+    transition: border-color 0.2s, background-color 0.2s;
+    flex-grow: 1;
+    color: var(--text-sub);
+}
+.theme-option:hover {
+    border-color: var(--brand-color);
+}
+.theme-option.active-theme {
+    border-color: var(--brand-color);
+    background-color: var(--bg-tertiary);
+    color: var(--text-main);
+}
+.theme-option i {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 1.5em;
+    color: var(--brand-color);
+}

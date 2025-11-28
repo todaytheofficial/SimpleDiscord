@@ -5,256 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeoCord Messenger</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
-    <style>
-        /* --- 🎨 NeoCord Style and Themes --- */
-        /* Используем более нейтральные и чистые цвета */
-        :root {
-            --bg-primary: #17171a;   /* Глубокий темный фон */
-            --bg-secondary: #212124; /* Панели */
-            --bg-tertiary: #2e2e33;  /* Выделение, ховер */
-            --text-main: #f0f0f5;    /* Основной белый текст */
-            --text-sub: #a1a1aa;     /* Второстепенный серый текст */
-            --brand-color: #007aff;  /* Чистый синий акцент */
-            --online-color: #34c759;
-            --offline-color: #636366;
-            --input-bg: #212124;
-            --danger-color: #ff3b30;
-            --border-color: #38383a; /* Тонкая граница */
-        }
-        
-        /* Light theme definition (optional, but good practice) */
-        .theme-light {
-            --bg-primary: #f2f2f7;
-            --bg-secondary: #ffffff;
-            --bg-tertiary: #e5e5ea;
-            --text-main: #1c1c1e;
-            --text-sub: #636366;
-            --brand-color: #007aff;
-            --online-color: #34c759;
-            --offline-color: #d1d1d6;
-            --input-bg: #e5e5ea;
-            --danger-color: #ff3b30;
-            --border-color: #d1d1d6;
-        }
-
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-primary); 
-            color: var(--text-main); 
-            overflow: hidden; 
-        }
-        
-        #app-container { 
-            display: grid; 
-            grid-template-columns: 80px 260px 1fr; 
-            height: 100vh; 
-            overflow: hidden;
-        }
-        
-        /* Server Panel (Left) */
-        #server-list { 
-            grid-column: 1; 
-            background-color: var(--bg-secondary); 
-            padding-top: 20px; 
-            border-right: 1px solid var(--border-color);
-            overflow-y: auto; 
-        }
-        .server-icon { 
-            width: 50px; 
-            height: 50px; 
-            margin: 10px auto; 
-            border-radius: 12px; /* Более квадратный, современный вид */
-            background-color: var(--bg-primary); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 24px; 
-            color: white; 
-            cursor: pointer; 
-            transition: background-color 0.2s, border-radius 0.2s; 
-        }
-        .server-icon.active { 
-            background-color: var(--brand-color); 
-            border-radius: 16px; /* Небольшое изменение формы при активности */
-            box-shadow: 0 4px 10px rgba(0, 122, 255, 0.3);
-        }
-        .server-icon:hover { 
-            background-color: var(--bg-tertiary);
-        }
-
-        /* Channels/DMs Panel (Middle) */
-        #friends-channels-panel { 
-            grid-column: 2; 
-            background-color: var(--bg-secondary); 
-            padding: 15px; 
-            overflow-y: auto; 
-            display: flex; 
-            flex-direction: column;
-            border-right: 1px solid var(--border-color);
-        }
-        
-        #friends-channels-panel h3 { 
-            color: var(--text-sub); 
-            font-size: 13px; 
-            text-transform: uppercase; 
-            margin-top: 25px; 
-            font-weight: 700;
-        }
-        
-        .channel-item, .dm-item { 
-            padding: 10px; 
-            display: flex; 
-            align-items: center; 
-            border-radius: 8px; /* Скругленные углы */
-            cursor: pointer; 
-            margin-bottom: 4px; 
-            transition: background-color 0.15s;
-        }
-        
-        .channel-item.active, .dm-item.active { 
-            background-color: var(--bg-tertiary); 
-            color: var(--text-main); 
-        }
-        .channel-item:hover, .dm-item:hover { 
-            background-color: var(--bg-tertiary); 
-        }
-
-        .channel-item i { margin-right: 8px; font-size: 14px; color: var(--text-sub); }
-        .dm-item img.avatar { width: 32px; height: 32px; margin-right: 10px; border-radius: 50%; border: 2px solid var(--bg-secondary); }
-
-        /* User Profile Bar */
-        #user-profile-bar { 
-            margin-top: auto; 
-            padding: 12px; 
-            background-color: var(--bg-primary); 
-            display: flex; 
-            align-items: center; 
-            cursor: pointer;
-            border-radius: 8px;
-            margin-bottom: 5px;
-        }
-        #user-profile-bar .avatar { 
-            width: 36px; 
-            height: 36px; 
-            margin-right: 10px;
-        }
-        #user-profile-bar strong { font-size: 15px; font-weight: 500; }
-        
-        /* Main Chat Area (Right) */
-        #chat-area { 
-            grid-column: 3; 
-            display: flex; 
-            flex-direction: column; 
-            background-color: var(--bg-primary); 
-            position: relative; 
-        }
-        
-        #chat-area header { 
-            padding: 15px 25px; 
-            border-bottom: 1px solid var(--border-color); 
-            background: var(--bg-secondary); 
-            color: var(--text-main); 
-            font-size: 18px;
-            font-weight: 700;
-        }
-        
-        #messages-container { 
-            flex-grow: 1; 
-            padding: 20px 25px; 
-            overflow-y: auto; 
-        }
-        
-        .message { 
-            margin-bottom: 20px; 
-            padding-top: 5px; 
-            display: flex; 
-        }
-        
-        .message-content { 
-            margin-left: 15px; 
-        }
-        
-        .message strong { 
-            color: var(--text-main); 
-            margin-right: 8px; 
-            font-weight: 700; 
-        }
-        
-        .timestamp { 
-            color: var(--text-sub); 
-            font-size: 13px; 
-            font-weight: 400;
-        }
-        
-        .avatar { 
-            width: 44px; 
-            height: 44px; 
-            border-radius: 50%; 
-            background-color: var(--offline-color); 
-            flex-shrink: 0;
-        }
-        
-        /* Input Form */
-        #form { 
-            padding: 20px 25px; 
-            background-color: var(--bg-primary); 
-        }
-        
-        #form-inner { 
-            display: flex; 
-            background-color: var(--bg-secondary); 
-            border-radius: 12px; 
-            padding: 10px; 
-            border: 1px solid var(--border-color); 
-        }
-        
-        #input { 
-            border: none; 
-            padding: 0 15px; 
-            flex-grow: 1; 
-            background: none; 
-            color: var(--text-main); 
-            outline: none; 
-            font-size: 16px; 
-        }
-        
-        #form > #form-inner > button { 
-            background-color: var(--brand-color); 
-            color: white; 
-            border: none; 
-            padding: 10px 20px; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            transition: background-color 0.2s; 
-            font-weight: 600;
-        }
-        #form > #form-inner > button:hover { background-color: #0056b3; }
-
-        /* Modals */
-        .modal { display: none; position: fixed; z-index: 1001; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); }
-        .modal-content { background-color: var(--bg-secondary); margin: 10% auto; padding: 30px; border-radius: 12px; width: 400px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); color: var(--text-main); }
-        .close { color: var(--text-sub); float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: var(--text-main); }
-        .modal-input { width: 95%; padding: 12px; margin: 10px 0; background-color: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-main); border-radius: 6px; outline: none; }
-        .modal-button { width: 100%; padding: 12px; margin-top: 15px; background-color: var(--brand-color); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
-        .auth-switch { text-align: center; color: var(--brand-color); cursor: pointer; font-size: 14px; margin-top: 15px; }
-        .file-input-container {
-            border: 2px dashed var(--text-sub);
-            padding: 15px;
-            text-align: center;
-            border-radius: 8px;
-            margin: 10px 0;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-        .file-input-container:hover { border-color: var(--brand-color); }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-dark">
     
@@ -283,47 +37,42 @@
 
     <div id="app-container" style="display: none;">
 
-        <aside id="server-list">
-            <div class="server-icon active" id="home-icon" title="Home / Direct Messages">
-                <i class="fas fa-comment"></i>
-            </div>
-            <hr style="border-top: 2px solid var(--border-color); width: 50%; margin: 10px auto;">
-            
-            <div class="server-icon" title="Server 1" style="background-color: #f7a048;">S1</div>
-            <div class="server-icon" title="Server 2" style="background-color: #388647;">S2</div>
-            
-            <div class="server-icon" id="theme-icon" title="Switch Theme" style="background-color: var(--bg-tertiary); font-size: 20px;">
-                <i class="fas fa-palette"></i>
-            </div>
-        </aside>
-
         <aside id="friends-channels-panel">
-            <h2 style="font-size: 22px; color: var(--brand-color); margin-bottom: 20px; font-weight: 700;">NeoCord</h2>
+            
+            <input type="text" id="friend-search-input" placeholder="Find or start a conversation (Search)" />
+            
+            <button id="start-dm-btn" class="modal-button" style="width: 100%; padding: 8px; margin-bottom: 10px; font-size: 15px; background: var(--brand-color);">
+                <i class="fas fa-user-plus"></i> Add Friend
+            </button>
+
+            <div class="friend-list-header">
+                <span id="show-friends-btn" class="active"><i class="fas fa-users"></i> Friends</span>
+                <span id="show-requests-btn"><i class="fas fa-inbox"></i> Pending (<span id="request-count">0</span>)</span>
+            </div>
+
+            <hr style="border-top: 1px solid var(--bg-tertiary); margin: 0 0 10px 0;">
             
             <div id="dm-section">
-                <h3>DIRECT MESSAGES</h3>
-                <ul id="dm-list-container" style="list-style: none; padding: 0;"></ul>
                 
-                <button id="start-dm-btn" class="modal-button" style="width: 100%; padding: 8px; margin-top: 10px; font-size: 14px; background: var(--brand-color);">
-                    <i class="fas fa-plus"></i> Start DM
-                </button>
-                <hr style="border-top: 1px solid var(--border-color); margin: 25px 0 15px 0;">
+                <div id="current-friends-view">
+                    <h3>DIRECT MESSAGES</h3>
+                    <ul id="dm-list-container" style="list-style: none; padding: 0;"></ul>
+                </div>
+
+                <div id="incoming-requests-view" style="display: none;">
+                    <h3>INCOMING REQUESTS</h3>
+                    <ul id="incoming-requests-list" style="list-style: none; padding: 0;"></ul>
+                </div>
             </div>
 
-            <h3 id="channels-header">CHANNELS</h3>
-            <ul id="channel-list-container" style="list-style: none; padding: 0;">
-                 </ul>
-            <button id="create-channel-btn" class="modal-button" style="width: 100%; padding: 8px; margin-top: 10px; font-size: 14px; background: var(--online-color);">
-                <i class="fas fa-hashtag"></i> Create Channel
-            </button>
-            
             <div id="user-profile-bar">
-                <img id="my-avatar" class="avatar" src="" alt="Avatar" style="border-radius: 50%; width: 36px; height: 36px;">
+                <img id="my-avatar" class="avatar" src="" alt="Avatar" style="border-radius: 50%; width: 32px; height: 32px;">
                 <div style="flex-grow: 1;">
                     <strong id="my-username"></strong>
-                    <div style="color: var(--text-sub); font-size: 12px;">Online</div>
+                    <div style="color: var(--text-sub); font-size: 11px;">#0000</div>
                 </div>
-                <i class="fas fa-cog" style="color: var(--text-sub);"></i>
+                <div class="status-indicator"></div>
+                <i class="fas fa-cog" id="open-settings-btn" style="color: var(--text-sub); margin-left: 10px; cursor: pointer;"></i>
             </div>
         </aside>
 
@@ -333,16 +82,14 @@
             </header>
             <div id="messages-container">
                 <p style="text-align: center; color: var(--text-sub); margin-top: 50px;">
-                    Welcome! Select a friend to start a conversation or create a channel.
+                    Welcome! Select a friend to start a conversation.
                 </p>
             </div>
             
             <form id="form" action="">
                 <div id="form-inner">
-                    <input id="input" autocomplete="off" placeholder="Select a friend to message..." />
-                    <button>
-                        <i class="fas fa-paper-plane"></i> Send
-                    </button>
+                    <input id="input" autocomplete="off" placeholder="Write a message..." />
+                    <button type="submit"><i class="fas fa-paper-plane"></i> Send</button>
                 </div>
             </form>
         </main>
@@ -358,66 +105,103 @@
                 <p id="modal-status" style="color: var(--online-color);"></p>
             </div>
             
-            <div id="my-profile-settings" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
-                <h4>Edit Settings</h4>
-                <input type="text" id="new-username-input" placeholder="New Username" class="modal-input">
-                
-                <div style="margin: 10px 0;">
-                    <label for="new-avatar-file" class="file-input-container">
-                        <span id="profile-file-name">Upload new avatar from PC</span>
-                    </label>
-                    <input type="file" id="new-avatar-file" name="avatar" accept="image/jpeg,image/png,image/gif" style="display: none;">
-                </div>
-                
-                <button class="modal-button" id="update-profile-btn">Save Changes</button>
-            </div>
-
-            <button class="modal-button" id="add-friend-btn" style="background-color: var(--online-color); display: none;">Start DM</button>
-        </div>
-    </div>
-    
-    <div id="create-channel-modal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('create-channel-modal')">&times;</span>
-            <h2>Create Channel</h2>
-            <input type="text" id="new-channel-name-input" placeholder="Channel name (e.g., test-channel)" class="modal-input">
-            <button class="modal-button" id="submit-create-channel">Create</button>
+            <button class="modal-button" id="add-friend-btn" style="background-color: var(--online-color); display: none;">Action Button</button>
         </div>
     </div>
     
     <div id="start-dm-modal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('start-dm-modal')">&times;</span>
-            <h2>Start Direct Message</h2>
-            <input type="text" id="dm-recipient-input" placeholder="Username" class="modal-input">
-            <button class="modal-button" id="submit-start-dm">Start Chat</button>
+            <h2>Send Friend Request</h2>
+            <input type="text" id="dm-recipient-input" placeholder="Enter username" class="modal-input">
+            <button class="modal-button" id="submit-start-dm">Send Request</button>
         </div>
     </div>
     
-    <div id="theme-modal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal('theme-modal')">&times;</span>
-            <h2>Theme Switch</h2>
-            <button class="modal-button" onclick="setTheme('dark')" style="background-color: var(--bg-primary);">Dark Theme</button>
-            <button class="modal-button" onclick="setTheme('light')" style="background-color: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-color); margin-top: 10px;">Light Theme</button>
+    <div id="settings-modal" class="modal">
+        <div class="modal-content" style="width: 600px; max-width: 90%; display: flex;">
+            <div style="flex-shrink: 0; width: 180px; padding: 30px 20px 30px 30px; border-right: 1px solid var(--border-color);">
+                <h3 style="margin-top: 0;">User Settings</h3>
+                <ul id="settings-menu" style="list-style: none; padding: 0; font-size: 15px;">
+                    <li class="setting-item active" data-section="my-account">My Account</li>
+                    <li class="setting-item" data-section="themes">Appearance</li>
+                    <li class="setting-item" data-section="privacy">Privacy & Safety</li>
+                    <li class="setting-item logout-item" id="logout-btn">Log Out</li>
+                </ul>
+            </div>
+
+            <div id="settings-content" style="flex-grow: 1; padding: 30px;">
+                <span class="close" onclick="closeModal('settings-modal')" style="position: absolute; top: 10px; right: 15px;">&times;</span>
+                
+                <div class="settings-section" id="my-account">
+                    <h2>My Account</h2>
+                    <div style="background-color: var(--bg-tertiary); padding: 15px; border-radius: 8px;">
+                        <h4>Profile Information</h4>
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                            <img id="settings-avatar-preview" class="avatar" style="width: 60px; height: 60px; margin-right: 15px;" src="" alt="Avatar">
+                            <div>
+                                <strong id="settings-username-display"></strong>
+                                <div style="color: var(--text-sub); font-size: 12px;">Change your details.</div>
+                            </div>
+                        </div>
+                        
+                        <input type="text" id="new-username-input" placeholder="New Username" class="modal-input" style="width: calc(100% - 24px);">
+                        
+                        <div style="margin: 10px 0;">
+                            <label for="new-avatar-file" class="file-input-container">
+                                <span id="profile-file-name">Upload new avatar from PC</span>
+                            </label>
+                            <input type="file" id="new-avatar-file" name="avatar" accept="image/jpeg,image/png,image/gif" style="display: none;">
+                        </div>
+                        
+                        <button class="modal-button" id="update-profile-btn" style="background-color: var(--online-color);">Save Changes</button>
+                    </div>
+
+                    <h4 style="color: var(--danger-color); margin-top: 30px;">Danger Zone</h4>
+                    <button class="modal-button" id="delete-account-btn" style="background-color: var(--danger-color); width: auto; padding: 10px 20px;">
+                        Delete Account
+                    </button>
+                </div>
+                
+                <div class="settings-section" id="themes" style="display: none;">
+                    <h2>Appearance</h2>
+                    <h4>Theme Selection</h4>
+                    <div style="display: flex; gap: 20px;">
+                        <div class="theme-option" data-theme="dark">
+                            <i class="fas fa-moon"></i> Dark (Default)
+                        </div>
+                        <div class="theme-option" data-theme="light">
+                            <i class="fas fa-sun"></i> Light
+                        </div>
+                        <div class="theme-option" data-theme="custom">
+                            <i class="fas fa-palette"></i> Soft Blue
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-section" id="privacy" style="display: none;">
+                    <h2>Privacy & Safety</h2>
+                    <p style="color: var(--text-sub);">Future privacy settings will appear here.</p>
+                </div>
+            </div>
         </div>
     </div>
-
-
+    
     <script src="/socket.io/socket.io.js"></script>
     <script>
         // --- Variables and Storage ---
         const API_URL = window.location.origin;
         let token = localStorage.getItem('token');
-        let currentUserId = localStorage.getItem('userId');
+        let currentUserId = parseInt(localStorage.getItem('userId'));
         let currentUsername = localStorage.getItem('username');
         let currentAvatar = localStorage.getItem('avatar') || '/img/anon_blue.png'; 
-        let currentChatId = 1; // ID канала general как Home по умолчанию
-        let isChatDM = false; // По умолчанию не DM
+        let currentChatId = 0; 
+        let isChatDM = true; 
         let isRegisterMode = false;
         let socket; 
         
-        let channels = [];
+        let friends = []; 
+        let pendingRequests = []; 
         let dms = {}; 
         
         // --- GUI Elements ---
@@ -426,445 +210,497 @@
         const appContainer = document.getElementById('app-container');
         const messagesContainer = document.getElementById('messages-container');
         const input = document.getElementById('input');
+        const messageForm = document.getElementById('form'); // New reference for chat form
         const myAvatarEl = document.getElementById('my-avatar');
         const myUsernameEl = document.getElementById('my-username');
         const currentChatTitleEl = document.getElementById('current-chat-title');
-        const channelListContainer = document.getElementById('channel-list-container');
         const dmListContainer = document.getElementById('dm-list-container');
-        const dmSection = document.getElementById('dm-section'); 
         const userProfileBar = document.getElementById('user-profile-bar'); 
+        const statusIndicatorEl = document.querySelector('.status-indicator');
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const authSwitchText = document.getElementById('auth-switch-text');
         
+        const startDmBtn = document.getElementById('start-dm-btn');
+        const submitStartDmBtn = document.getElementById('submit-start-dm');
+        
+        const settingsModal = document.getElementById('settings-modal');
+        const settingsMenu = document.getElementById('settings-menu');
+        const updateProfileBtn = document.getElementById('update-profile-btn');
+        const deleteAccountBtn = document.getElementById('delete-account-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const newUsernameInput = document.getElementById('new-username-input');
+        const newAvatarFile = document.getElementById('new-avatar-file');
+        const settingsAvatarPreview = document.getElementById('settings-avatar-preview');
+        const settingsUsernameDisplay = document.getElementById('settings-username-display');
+        
+        // Helper function for creating elements (DRY)
+        function createElement(tag, className = '', content = '') {
+            const el = document.createElement(tag);
+            if (className) el.className = className;
+            if (content) el.innerHTML = content;
+            return el;
+        }
+
         // --- 0. THEMES AND MODALS ---
+        
         function setTheme(theme) {
             document.body.className = `theme-${theme}`;
             localStorage.setItem('theme', theme);
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.classList.toggle('active-theme', opt.dataset.theme === theme);
+            });
         }
-        if (localStorage.getItem('theme')) { setTheme(localStorage.getItem('theme')); } else { setTheme('dark'); }
-
+        
         function openModal(id, userId = currentUserId) {
             if (id === 'profile-modal') { loadProfileData(userId); }
+            if (id === 'settings-modal') { loadSettingsData(); } 
             document.getElementById(id).style.display = 'block';
         }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
         
-        document.getElementById('theme-icon').addEventListener('click', () => openModal('theme-modal'));
-        document.getElementById('create-channel-btn').addEventListener('click', () => openModal('create-channel-modal'));
-        document.getElementById('start-dm-btn').addEventListener('click', () => openModal('start-dm-modal'));
-        
-        document.getElementById('home-icon').addEventListener('click', () => joinChat(1, false)); 
-        
-        if (userProfileBar) {
-             userProfileBar.addEventListener('click', () => openModal('profile-modal'));
-        }
-
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) { event.target.style.display = "none"; }
-        }
-
-        // --- FILE HANDLERS ---
-        document.getElementById('auth-avatar-file').addEventListener('change', (e) => {
-             document.getElementById('auth-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Select an avatar from PC (max 2MB)';
-        });
-        document.getElementById('new-avatar-file').addEventListener('change', (e) => {
-             document.getElementById('profile-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Upload new avatar from PC';
-        });
-
-
-        // --- 1. AUTHENTICATION LOGIC ---
+        // --- AUTH/INIT LOGIC ---
         
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
+            document.getElementById('auth-avatar-upload').style.display = isRegisterMode ? 'block' : 'none';
             document.getElementById('auth-button').textContent = isRegisterMode ? 'Register' : 'Login';
-            document.getElementById('auth-switch-text').innerHTML = isRegisterMode ? '<small>Switch to Login</small>' : '<small>Switch to Register</small>';
-            document.getElementById('auth-avatar-upload').style.display = isRegisterMode ? 'block' : 'none'; 
+            authSwitchText.querySelector('small').textContent = isRegisterMode ? 'Switch to Login' : 'Switch to Register';
             document.getElementById('auth-message').textContent = '';
         }
-        document.getElementById('auth-switch-text').addEventListener('click', toggleAuthMode);
-        
+
         function updateGUI() {
             myUsernameEl.textContent = currentUsername;
             myAvatarEl.src = currentAvatar;
+            statusIndicatorEl.style.backgroundColor = 'var(--online-color)';
         }
 
-        authForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const username = document.getElementById('auth-username').value;
-            const password = document.getElementById('auth-password').value;
-            const endpoint = isRegisterMode ? '/api/register' : '/api/login';
-            let body = isRegisterMode ? new FormData(authForm) : JSON.stringify({ username, password });
-            
-            try {
-                const response = await fetch(API_URL + endpoint, {
-                    method: 'POST',
-                    body: body,
-                    headers: isRegisterMode ? {} : { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                
-                if (response.ok && !isRegisterMode) {
-                    token = data.token;
-                    currentUserId = data.userId;
-                    currentUsername = data.username;
-                    currentAvatar = data.avatar;
-
-                    localStorage.setItem('token', token);
-                    localStorage.setItem('userId', currentUserId);
-                    localStorage.setItem('username', currentUsername);
-                    localStorage.setItem('avatar', currentAvatar);
-                    
-                    authScreen.style.display = 'none';
-                    appContainer.style.display = 'grid';
-                    updateGUI();
-                    connectSocket(); 
-                } else if (response.ok && isRegisterMode) {
-                    document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
-                    document.getElementById('auth-message').style.color = 'var(--online-color)';
-                    toggleAuthMode();
-                } else {
-                    document.getElementById('auth-message').textContent = data.message || 'Error. Please try again.';
-                    document.getElementById('auth-message').style.color = 'var(--danger-color)';
-                }
-            } catch (error) {
-                document.getElementById('auth-message').textContent = 'Network or server error.';
-                document.getElementById('auth-message').style.color = 'var(--danger-color)';
-            }
-        });
-
-        if (token) {
-            authScreen.style.display = 'none';
-            appContainer.style.display = 'grid';
-            updateGUI();
-            connectSocket(); 
-        } else {
-            authScreen.style.display = 'flex';
+        function handleLogout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            localStorage.removeItem('avatar');
+            location.reload(); 
         }
-
-        // --- 2. SOCKET.IO AND CHAT LOGIC ---
         
-        function connectSocket() {
+        // --- SOCKET.IO AND CHAT LOGIC ---
+        
+        function connectSocket() { 
             if (socket) { socket.disconnect(); }
             socket = io(API_URL);
             
             socket.on('connect', () => {
                 socket.emit('authenticate', token);
-                // После подключения, автоматически переключаемся в Home (general)
-                joinChat(currentChatId, isChatDM); 
             });
             
             socket.on('newMessage', displayMessage);
             
             socket.on('messageHistory', (history) => {
                 messagesContainer.innerHTML = ''; 
+                if (history.length === 0) {
+                     messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Start a conversation!</p>`;
+                }
                 history.forEach(msg => displayMessage(msg, true)); 
                 messagesContainer.scrollTop = messagesContainer.scrollHeight; 
             });
 
             socket.on('userUpdateInfo', (data) => {
                  if (data.userId == currentUserId) {
-                    if (data.newUsername) { currentUsername = data.newUsername; localStorage.setItem('username', currentUsername); }
-                    if (data.newAvatar) { currentAvatar = data.newAvatar; localStorage.setItem('avatar', currentAvatar); }
+                    if (data.newUsername) { 
+                        currentUsername = data.newUsername; 
+                        localStorage.setItem('username', currentUsername); 
+                    }
+                    if (data.newAvatar) { 
+                        currentAvatar = data.newAvatar; 
+                        localStorage.setItem('avatar', currentAvatar); 
+                    }
                     updateGUI();
                  }
+                 // Re-authenticate to refresh friend lists/names
                  socket.emit('authenticate', token); 
             });
             
-            // Channels and DMs
-            socket.on('initialChannels', (data) => {
-                channels = data.channels;
+            socket.on('initialData', (data) => {
+                friends = data.friends; 
+                pendingRequests = data.pendingRequests; 
                 dms = data.dms; 
+
                 currentChatId = data.activeChatId;
-                isChatDM = data.isDM;
+                isChatDM = true;
                 
-                renderChats();
+                renderDMs(); 
+                renderRequests(); 
                 
                 updateChatHeader(currentChatId, isChatDM);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                if (data.activeChatId !== 0) {
+                    // Automatically load history for the active chat
+                    const channel = getChannelById(currentChatId);
+                    if (channel) {
+                        socket.emit('joinChat', { newId: currentChatId, isDM: true });
+                    }
+                } else {
+                    setActiveFriendsView('friends'); 
+                }
+            });
+
+            socket.on('friendRequestReceived', (data) => {
+                alert(`New friend request from ${data.username}! Check 'Pending'.`);
+                pendingRequests.push(data);
+                renderRequests();
+            });
+            
+            socket.on('friendRequestAccepted', (data) => {
+                alert(`${data.username} accepted your friend request!`);
+                
+                pendingRequests = pendingRequests.filter(req => req.userId != data.userId);
+                renderRequests();
+
+                friends.push(data);
+                dms[data.userId] = { channelId: data.channelId }; 
+                renderDMs(); 
             });
             
             socket.on('chatChanged', (data) => {
                 currentChatId = data.newId;
                 isChatDM = data.isDM;
-                renderChats(); 
+                // Re-render DMs to show active state
+                renderDMs(); 
                 updateChatHeader(currentChatId, isChatDM);
-            });
-            
-            socket.on('newChannelCreated', (channel) => {
-                channels.push(channel);
-                renderChannels();
-            });
-            
-            socket.on('newDMStarted', (dmInfo) => {
-                dms[dmInfo.userId] = dmInfo;
-                renderDMs();
-                if (dmInfo.userId != currentUserId) {
-                    joinChat(dmInfo.channelId, true);
-                }
             });
             
             socket.on('requestError', (message) => { alert(`Error: ${message}`); });
             socket.on('requestSuccess', (message) => { alert(`Success: ${message}`); });
-        }
-
-        document.getElementById('form').addEventListener('submit', function(e) {
-            e.preventDefault(); 
-            if (input.value.trim() && socket) {
-                socket.emit('chat message', { content: input.value, isDM: isChatDM });
-                input.value = '';
-            }
-        });
-        
-        function displayMessage(data, isHistory = false) {
-            const isActiveChat = (data.isDM == 1) ? isChatDM : !isChatDM;
-            if (!isHistory && (data.channelId != currentChatId)) return;
-             
-            const messageEl = document.createElement('div');
-            messageEl.classList.add('message');
             
-            const time = new Date(data.timestamp).toLocaleTimeString(); 
-
-            messageEl.innerHTML = `
-                <img class="avatar" src="${data.avatar}" onclick="openModal('profile-modal', ${data.user_id})">
-                <div class="message-content">
-                    <div>
-                        <strong>${data.username}</strong>
-                        <span class="timestamp">${time}</span>
-                    </div>
-                    <div class="text">${data.content}</div>
-                </div>
-            `;
-            
-            messagesContainer.appendChild(messageEl);
-            
-            // АВТОМАТИЧЕСКИЙ СКРОЛЛ ВНИЗ
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function updateChatHeader(id, isDM) {
-             let title = `Select a friend`;
-             let placeholder = `Select a friend to message...`;
-             
-             // Если активен ID 1 (Home)
-             if (id === 1 && !isDM) {
-                 title = 'Friends';
-                 placeholder = 'Select a friend or start a new conversation...';
-                 currentChatTitleEl.textContent = title;
-                 input.placeholder = placeholder;
-                 return; 
-             }
-             
-             if (isDM) {
-                 const dmInfo = Object.values(dms).find(dm => dm.channelId === id);
-                 if (dmInfo) {
-                     title = `@ ${dmInfo.username}`;
-                     placeholder = `Message @${dmInfo.username}...`;
-                 }
-             } else {
-                 const channel = channels.find(c => c.id === id);
-                 if (channel) {
-                     title = `# ${channel.name}`;
-                     placeholder = `Message #${channel.name}...`;
-                 }
-             }
-             currentChatTitleEl.textContent = title;
-             input.placeholder = placeholder;
-        }
-
-
-        // --- 3. CHANNELS AND DMs RENDERING ---
-        
-        function setActiveServerIcon(id) {
-            document.querySelectorAll('#server-list .server-icon').forEach(icon => {
-                icon.classList.remove('active');
+            socket.on('accountDeleted', () => {
+                 alert('Your account has been successfully deleted.');
+                 handleLogout();
             });
-            if (id === 1) {
-                document.getElementById('home-icon').classList.add('active');
+        }
+        
+        function displayMessage(msg, isHistory = false) {
+            // ... (unchanged displayMessage function) ...
+            const item = createElement('div', 'message');
+            
+            const avatarImg = createElement('img', 'avatar');
+            avatarImg.src = msg.avatar;
+            item.appendChild(avatarImg);
+            
+            const contentDiv = createElement('div', 'message-content');
+            
+            const header = createElement('div');
+            header.innerHTML = `<strong>${msg.username}</strong> <span class="timestamp">${new Date(msg.timestamp).toLocaleTimeString()}</span>`;
+            contentDiv.appendChild(header);
+            
+            const text = createElement('p', '', msg.content);
+            contentDiv.appendChild(text);
+            
+            item.appendChild(contentDiv);
+            messagesContainer.appendChild(item);
+            
+            if (!isHistory) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight; 
             }
         }
         
-        function renderChats() {
-            const isHomeActive = (currentChatId === 1 && !isChatDM);
+        function updateChatHeader(chatId, isDM) {
+            if (chatId === 0) {
+                currentChatTitleEl.textContent = 'Friends';
+                return;
+            }
             
-            // Показываем DM-список только в режиме Home
-            dmSection.style.display = isHomeActive ? 'block' : 'none';
-
-            // Обновляем активную иконку сервера
-            setActiveServerIcon(isHomeActive ? 1 : 0); 
-
-            renderChannels();
-            renderDMs(); 
-        }
-
-        function renderChannels() {
-            channelListContainer.innerHTML = '';
-            channels.forEach(channel => {
-                // ИСКЛЮЧАЕМ КАНАЛ #GENERAL (ID 1) ПОЛНОСТЬЮ
-                if (channel.id === 1) return;
-                
-                const li = document.createElement('li');
-                li.classList.add('channel-item');
-                
-                if (!isChatDM && channel.id == currentChatId) {
-                    li.classList.add('active');
+            if (isDM) {
+                const partner = friends.find(f => dms[f.userId].channelId === chatId);
+                if (partner) {
+                    currentChatTitleEl.textContent = partner.username;
+                } else {
+                     currentChatTitleEl.textContent = 'DM Chat';
                 }
-                li.dataset.id = channel.id;
-                li.innerHTML = `<span><i class="fas fa-hashtag"></i> ${channel.name}</span>`;
-                li.addEventListener('click', () => joinChat(channel.id, false));
-                channelListContainer.appendChild(li);
-            });
+            } else {
+                 currentChatTitleEl.textContent = 'Channel Chat'; // Placeholder
+            }
         }
         
         function renderDMs() {
             dmListContainer.innerHTML = '';
-            const sortedDms = Object.values(dms).sort((a, b) => a.username.localeCompare(b.username));
-
-            sortedDms.forEach(dmInfo => {
-                const li = document.createElement('li');
-                li.classList.add('dm-item');
+            friends.forEach(friend => {
+                const channelId = dms[friend.userId] ? dms[friend.userId].channelId : 0;
                 
-                if (isChatDM && dmInfo.channelId == currentChatId) {
-                    li.classList.add('active');
-                }
-                li.dataset.id = dmInfo.channelId;
-                li.dataset.userId = dmInfo.userId; 
+                const item = createElement('li');
+                const div = createElement('div', `friend-item ${channelId === currentChatId ? 'active' : ''}`);
+                div.dataset.channelId = channelId;
+                div.dataset.isDm = true;
+                div.dataset.userId = friend.userId;
                 
-                li.innerHTML = `<img class="avatar" src="${dmInfo.avatar}" alt="DM Avatar"><span>${dmInfo.username}</span>`;
+                div.innerHTML = `<img class="avatar" src="${friend.avatar}" alt="${friend.username}"> ${friend.username}`;
                 
-                li.addEventListener('click', () => joinChat(dmInfo.channelId, true));
-                dmListContainer.appendChild(li);
-            });
-        }
-
-        function joinChat(id, isDM) {
-            if (id != currentChatId || isDM !== isChatDM) {
-                socket.emit('joinChat', { newId: id, isDM: isDM });
-                
-                document.querySelectorAll('.channel-item, .dm-item').forEach(el => el.classList.remove('active'));
-                
-                if (isDM) {
-                     const selector = `.dm-item[data-id="${id}"]`;
-                     document.querySelector(selector)?.classList.add('active');
-                } else if (id !== 1) { 
-                     const selector = `.channel-item[data-id="${id}"]`;
-                     document.querySelector(selector)?.classList.add('active');
-                }
-                
-                renderChats(); 
-                updateChatHeader(id, isDM);
-            }
-        }
-        
-        document.getElementById('submit-create-channel').addEventListener('click', () => {
-            const channelName = document.getElementById('new-channel-name-input').value.trim();
-            if (channelName) {
-                socket.emit('createChannel', channelName);
-                closeModal('create-channel-modal');
-                document.getElementById('new-channel-name-input').value = '';
-            } else {
-                alert('Channel name cannot be empty.');
-            }
-        });
-        
-        document.getElementById('submit-start-dm').addEventListener('click', () => {
-            const recipientUsername = document.getElementById('dm-recipient-input').value.trim();
-            if (recipientUsername) {
-                socket.emit('startDM', recipientUsername);
-                closeModal('start-dm-modal');
-                document.getElementById('dm-recipient-input').value = '';
-            } else {
-                alert('Please enter a username.');
-            }
-        });
-
-
-        // --- 4. PROFILE AND SETTINGS ---
-        
-        async function loadProfileData(userId) {
-            const isMyProfile = userId == currentUserId;
-            
-            document.getElementById('my-profile-settings').style.display = isMyProfile ? 'block' : 'none';
-            const addFriendBtn = document.getElementById('add-friend-btn');
-            addFriendBtn.style.display = 'none';
-
-            try {
-                const response = await fetch(`${API_URL}/api/profile/${userId}`);
-                const user = await response.json();
-                
-                document.getElementById('modal-profile-title').textContent = isMyProfile ? 'My Profile' : 'User Profile';
-                document.getElementById('modal-avatar').src = user.avatar;
-                document.getElementById('modal-username').textContent = user.username;
-                document.getElementById('modal-status').textContent = user.status === 'online' ? 'Online' : 'Offline';
-                document.getElementById('modal-status').style.color = user.status === 'online' ? 'var(--online-color)' : 'var(--offline-color)';
-
-                if (isMyProfile) {
-                    document.getElementById('new-username-input').value = user.username;
-                    document.getElementById('new-avatar-file').value = ''; 
-                    document.getElementById('profile-file-name').textContent = 'Upload new avatar from PC';
-                } else if (userId != currentUserId) {
-                    
-                    const dmInfo = Object.values(dms).find(dm => dm.userId == userId);
-
-                    addFriendBtn.textContent = (dmInfo) ? `Go to DM with ${user.username}` : `Start DM with ${user.username}`;
-                    addFriendBtn.style.display = 'block';
-                    addFriendBtn.onclick = () => {
-                         if (dmInfo) {
-                            joinChat(dmInfo.channelId, true);
-                         } else {
-                             socket.emit('startDM', user.username);
-                         }
-                         closeModal('profile-modal');
-                    };
-                }
-
-            } catch (error) {
-                 alert('Failed to load profile data.');
-            }
-        }
-        
-        document.getElementById('update-profile-btn').addEventListener('click', async () => {
-            const newUsername = document.getElementById('new-username-input').value.trim();
-            const avatarFile = document.getElementById('new-avatar-file').files[0];
-            
-            if ((newUsername === currentUsername || newUsername === '') && !avatarFile) {
-                return alert('No data to update.');
-            }
-
-            const formData = new FormData();
-            if (newUsername !== currentUsername && newUsername !== '') { formData.append('newUsername', newUsername); }
-            if (avatarFile) { formData.append('avatar', avatarFile); }
-            
-            try {
-                const response = await fetch(`${API_URL}/api/update_profile`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData
+                div.addEventListener('click', (e) => {
+                    const id = parseInt(e.currentTarget.dataset.channelId);
+                    if (id !== currentChatId) {
+                        joinChat(id, true);
+                    }
+                    setActiveFriendsView('friends');
                 });
                 
-                const data = await response.json();
-                
-                if (response.ok) {
-                    alert(data.message);
-                    
-                    if (data.token) { 
-                        token = data.token; localStorage.setItem('token', token);
-                    }
-                    if (data.username) {
-                        currentUsername = data.username; localStorage.setItem('username', currentUsername);
-                    }
-                    if (data.avatar) {
-                        currentAvatar = data.avatar; localStorage.setItem('avatar', currentAvatar);
-                    }
-                    
-                    updateGUI();
-                    closeModal('profile-modal');
-                    
-                    socket.disconnect(); 
-                    connectSocket(); 
-                    
-                } else {
-                    alert(data.message || 'Profile update failed.');
+                item.appendChild(div);
+                dmListContainer.appendChild(item);
+            });
+        }
+        
+        function renderRequests() {
+             // ... (unchanged renderRequests function, using pendingRequests array) ...
+            const list = document.getElementById('incoming-requests-list');
+            list.innerHTML = '';
+            document.getElementById('request-count').textContent = pendingRequests.length;
+
+            if (pendingRequests.length === 0) {
+                list.innerHTML = `<li style="padding: 10px; color: var(--text-sub);">No incoming requests.</li>`;
+            }
+
+            pendingRequests.forEach(req => {
+                const item = createElement('li');
+                item.className = 'friend-item';
+                item.innerHTML = `
+                    <img class="avatar" src="${req.avatar}" alt="${req.username}">
+                    <div style="flex-grow: 1;">${req.username}</div>
+                    <button class="request-action-btn accept" data-user-id="${req.userId}"><i class="fas fa-check"></i></button>
+                    <button class="request-action-btn reject" data-user-id="${req.userId}"><i class="fas fa-times"></i></button>
+                `;
+                list.appendChild(item);
+            });
+        }
+        
+        function joinChat(id, isDM, emit = true) {
+            currentChatId = id;
+            isChatDM = isDM;
+            if (emit) {
+                socket.emit('joinChat', { newId: id, isDM: isDM });
+            }
+            renderDMs(); // Highlight active chat
+        }
+        
+        // --- 4. PROFILE AND SETTINGS LOGIC ---
+        
+        function loadSettingsData() {
+            settingsAvatarPreview.src = currentAvatar;
+            settingsUsernameDisplay.textContent = currentUsername;
+            newUsernameInput.value = currentUsername;
+            newAvatarFile.value = '';
+            document.getElementById('profile-file-name').textContent = 'Upload new avatar from PC';
+            
+            const currentTheme = localStorage.getItem('theme') || 'dark';
+            document.querySelectorAll('.theme-option').forEach(opt => {
+                opt.classList.toggle('active-theme', opt.dataset.theme === currentTheme);
+            });
+            
+            document.querySelectorAll('.settings-section').forEach(sec => sec.style.display = 'none');
+            document.getElementById('my-account').style.display = 'block';
+            document.querySelectorAll('.setting-item').forEach(item => item.classList.remove('active'));
+            document.querySelector('.setting-item[data-section="my-account"]').classList.add('active');
+        }
+
+        function getChannelById(id) {
+            for (const key in dms) {
+                if (dms[key].channelId === id) {
+                    return dms[key];
                 }
-            } catch (error) {
-                alert('Network error during profile update.');
+            }
+            return null;
+        }
+
+        // --- Event Listeners (FIX for not working buttons) ---
+        
+        function initializeListeners() {
+             // Load initial theme
+            if (localStorage.getItem('theme')) { setTheme(localStorage.getItem('theme')); } else { setTheme('dark'); }
+            
+            // --- AUTH/APP INIT ---
+            authSwitchText.addEventListener('click', toggleAuthMode);
+            
+            authForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('auth-username').value;
+                const password = document.getElementById('auth-password').value;
+                const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+                let body = isRegisterMode ? new FormData(authForm) : JSON.stringify({ username, password });
+                
+                try {
+                    const response = await fetch(API_URL + endpoint, {
+                        method: 'POST',
+                        body: body,
+                        headers: isRegisterMode ? {} : { 'Content-Type': 'application/json' }
+                    });
+                    const data = await response.json();
+                    
+                    if (response.ok && !isRegisterMode) {
+                        token = data.token;
+                        currentUserId = data.userId;
+                        currentUsername = data.username;
+                        currentAvatar = data.avatar;
+
+                        localStorage.setItem('token', token);
+                        localStorage.setItem('userId', currentUserId);
+                        localStorage.setItem('username', currentUsername);
+                        localStorage.setItem('avatar', currentAvatar);
+                        
+                        authScreen.style.display = 'none';
+                        appContainer.style.display = 'grid';
+                        updateGUI();
+                        connectSocket(); 
+                    } else if (response.ok && isRegisterMode) {
+                        document.getElementById('auth-message').textContent = 'Registration successful! Please login.';
+                        document.getElementById('auth-message').style.color = 'var(--online-color)';
+                        toggleAuthMode();
+                    } else {
+                        document.getElementById('auth-message').textContent = data.message || 'Error. Please try again.';
+                        document.getElementById('auth-message').style.color = 'var(--danger-color)';
+                    }
+                } catch (error) {
+                    document.getElementById('auth-message').textContent = 'Network or server error.';
+                    document.getElementById('auth-message').style.color = 'var(--danger-color)';
+                }
+            });
+
+            // Start chat form listener
+            messageForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                if (input.value && socket && currentChatId !== 0) {
+                    socket.emit('chat message', { content: input.value });
+                    input.value = '';
+                }
+            });
+            
+            // --- MODALS ---
+            window.onclick = function(event) {
+                if (event.target.classList.contains('modal')) { event.target.style.display = "none"; }
+            }
+            
+            // --- ADD FRIEND MODAL ---
+            startDmBtn.addEventListener('click', () => openModal('start-dm-modal'));
+            submitStartDmBtn.addEventListener('click', () => {
+                 const recipientUsername = document.getElementById('dm-recipient-input').value.trim();
+                 if (recipientUsername) {
+                     socket.emit('sendFriendRequest', recipientUsername);
+                     document.getElementById('dm-recipient-input').value = '';
+                     closeModal('start-dm-modal');
+                 }
+            });
+            
+            // --- SETTINGS MODAL ---
+            openSettingsBtn.addEventListener('click', () => openModal('settings-modal'));
+            
+            // SETTINGS MENU NAVIGATION
+            settingsMenu.addEventListener('click', (e) => {
+                const item = e.target.closest('.setting-item');
+                if (!item || item.classList.contains('logout-item')) return;
+                
+                document.querySelectorAll('.setting-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+
+                const sectionId = item.dataset.section;
+                document.querySelectorAll('.settings-section').forEach(sec => sec.style.display = 'none');
+                document.getElementById(sectionId).style.display = 'block';
+            });
+            
+            // THEME SELECTION
+            document.querySelectorAll('.theme-option').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    setTheme(this.dataset.theme);
+                });
+            });
+            
+            // UPDATE PROFILE LOGIC
+            updateProfileBtn.addEventListener('click', async () => {
+                const newUsername = newUsernameInput.value.trim();
+                const avatarFile = newAvatarFile.files[0];
+
+                if (!newUsername) {
+                    return alert('Username cannot be empty.');
+                }
+
+                const formData = new FormData();
+                formData.append('newUsername', newUsername);
+                if (avatarFile) {
+                    formData.append('avatar', avatarFile);
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/api/update-profile`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData 
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert('Profile updated successfully!');
+                        closeModal('settings-modal');
+                        
+                        if (data.newUsername) { currentUsername = data.newUsername; localStorage.setItem('username', currentUsername); }
+                        if (data.newAvatar) { currentAvatar = data.newAvatar; localStorage.setItem('avatar', currentAvatar); }
+                        updateGUI();
+                        socket.emit('authenticate', token); 
+                        
+                    } else { alert(`Update failed: ${data.message || 'Server error'}`); }
+                } catch (error) { alert('Network error during profile update.'); }
+            });
+
+            // DELETE ACCOUNT LOGIC
+            deleteAccountBtn.addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) { return; }
+                try {
+                    const response = await fetch(`${API_URL}/api/delete-account`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) {
+                        const data = await response.json();
+                        alert(`Deletion failed: ${data.message || 'Server error'}`);
+                    }
+                    // Success handled by socket.on('accountDeleted')
+                } catch (error) { alert('Network error during account deletion.'); }
+            });
+
+            // LOGOUT
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // --- FILE INPUT HANDLERS ---
+            document.getElementById('auth-avatar-file').addEventListener('change', (e) => {
+                 document.getElementById('auth-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Select an avatar from PC (max 2MB)';
+            });
+            newAvatarFile.addEventListener('change', (e) => {
+                 document.getElementById('profile-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Upload new avatar from PC';
+                 if (e.target.files.length > 0) {
+                     const reader = new FileReader();
+                     reader.onload = function(event) { settingsAvatarPreview.src = event.target.result; };
+                     reader.readAsDataURL(e.target.files[0]);
+                 }
+            });
+            
+            // --- FRIEND REQUEST ACTIONS ---
+            document.getElementById('incoming-requests-list').addEventListener('click', (e) => {
+                const btn = e.target.closest('.request-action-btn');
+                if (!btn) return;
+                
+                const userId = parseInt(btn.dataset.userId);
+                const action = btn.classList.contains('accept') ? 'accept' : 'reject';
+
+                if (socket) {
+                    socket.emit('handleFriendRequest', { userId, action });
+                }
+            });
+        }
+        
+        // Ensure all DOM elements exist before attempting to attach listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeListeners();
+            // Final check to load the application or show auth screen
+            if (token) {
+                authScreen.style.display = 'none';
+                appContainer.style.display = 'grid';
+                updateGUI();
+                connectSocket(); 
+            } else {
+                authScreen.style.display = 'flex';
             }
         });
 
