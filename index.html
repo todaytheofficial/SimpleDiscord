@@ -11,45 +11,74 @@
     <link rel="stylesheet" href="style.css">
 
     <style>
+        /* Основная структура приложения */
+        #app-container {
+            display: grid;
+            grid-template-columns: 280px 1fr; /* Desktop: 280px sidebar */
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--bg-primary);
+        }
+
+        /* Область чата */
         #chat-area {
             display: flex;
             flex-direction: column;
-            height: 100%; /* Ensure main is full height */
+            height: 100%;
+            background-color: var(--bg-secondary);
         }
+        
+        /* 1. КРИТИЧЕСКИЙ ФИКС СКРОЛЛИНГА СООБЩЕНИЙ */
         #messages-container {
-            /* 1. CRITICAL: Allows scrolling and takes up remaining vertical space */
-            flex: 1; 
-            overflow-y: auto; 
+            flex: 1; /* Занимает все доступное место */
+            overflow-y: auto; /* Включает прокрутку */
             padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
-        /* Add basic message styling if not in style.css */
-        .message {
+
+        /* 2. КРИТИЧЕСКИЙ ФИКС СКРОЛЛИНГА ДРУЗЕЙ */
+        #dm-section {
+            flex-grow: 1;
+            overflow-y: auto; /* Включает прокрутку списка друзей */
+            padding-right: 5px; /* Небольшой отступ для красоты скроллбара */
+        }
+        
+        #friends-channels-panel {
             display: flex;
-            align-items: flex-start;
+            flex-direction: column;
+            padding: 10px 10px 0 10px;
+            background-color: var(--bg-tertiary);
+            height: 100%;
         }
-        .message .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-            flex-shrink: 0;
+
+        #user-profile-bar {
+            margin-top: auto; /* Прижимает бар к низу */
         }
-        .message-content {
-            background-color: var(--bg-secondary);
-            padding: 10px 15px;
-            border-radius: 8px;
-            max-width: 70%;
-        }
-        .message-content strong {
-            color: var(--text-primary);
-        }
-        .message-content .timestamp {
-            font-size: 11px;
-            color: var(--text-sub);
-            margin-left: 10px;
+
+
+        /* --- МОБИЛЬНАЯ АДАПТАЦИЯ (GUI Fix) --- */
+        @media (max-width: 600px) {
+            #app-container {
+                grid-template-columns: 1fr; /* Mobile: Full width */
+            }
+
+            /* По умолчанию показываем только панель друзей */
+            #friends-channels-panel {
+                width: 100%;
+                /* Мобильный вид: панель друзей занимает 100% высоты */
+                position: absolute; 
+                z-index: 10;
+            }
+
+            /* Скрываем чат, пока не выбран друг */
+            #chat-area {
+                display: none; 
+                position: absolute;
+                width: 100%;
+                z-index: 20;
+            }
         }
     </style>
 </head>
@@ -126,8 +155,12 @@
 
         <main id="chat-area">
              <header>
+                 <button id="back-to-friends-btn" style="display: none; background: none; border: none; color: var(--text-primary); margin-right: 10px; font-size: 18px; cursor: pointer;">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
                 <strong id="current-chat-title">Друзья</strong>
             </header>
+            
             <div id="messages-container">
                 <p style="text-align: center; color: var(--text-sub); margin-top: 50px;">
                     Добро пожаловать! Выберите друга, чтобы начать разговор.
@@ -286,6 +319,9 @@
         const settingsUsernameDisplay = document.getElementById('settings-username-display');
 
         const adminConsoleBtn = document.getElementById('admin-console-btn');
+        const friendsPanel = document.getElementById('friends-channels-panel');
+        const chatArea = document.getElementById('chat-area');
+        const backToFriendsBtn = document.getElementById('back-to-friends-btn');
         
         // Helper function for creating elements (DRY)
         function createElement(tag, className = '', content = '') {
@@ -325,16 +361,35 @@
             myUsernameEl.textContent = currentUsername;
             myAvatarEl.src = currentAvatar;
             statusIndicatorEl.style.backgroundColor = 'var(--online-color)';
-            // Показать кнопку админ-консоли, если ID = 100 (Today_Idk)
             adminConsoleBtn.style.display = (currentUserId === 100) ? 'block' : 'none'; 
+            
+            // Show/hide back button based on screen size
+            const isMobile = window.matchMedia("(max-width: 600px)").matches;
+            backToFriendsBtn.style.display = isMobile && currentChatId !== 0 ? 'inline-block' : 'none';
         }
-
+        
         function handleLogout() {
             localStorage.removeItem('token');
             localStorage.removeItem('userId');
             localStorage.removeItem('username');
             localStorage.removeItem('avatar');
             location.reload(); 
+        }
+
+        // --- МОБИЛЬНЫЙ ФИКС: Переключение Панелей ---
+        function showChatArea() {
+            if (window.matchMedia("(max-width: 600px)").matches) {
+                friendsPanel.style.display = 'none';
+                chatArea.style.display = 'flex';
+                backToFriendsBtn.style.display = 'inline-block';
+            }
+        }
+
+        function showFriendsPanel() {
+            if (window.matchMedia("(max-width: 600px)").matches) {
+                friendsPanel.style.display = 'flex';
+                chatArea.style.display = 'none';
+            }
         }
         
         // --- SOCKET.IO AND CHAT LOGIC ---
@@ -359,7 +414,6 @@
             });
 
             socket.on('systemAnnouncement', (msg) => {
-                // ФИКС: Объявление использует данные из msg (включая аватарку админа)
                 displayMessage(msg); 
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             });
@@ -393,6 +447,7 @@
                 updateChatHeader(currentChatId, isChatDM);
                 if (data.activeChatId !== 0) {
                     socket.emit('joinChat', { newId: currentChatId, isDM: true });
+                    showChatArea(); // Show chat if initialized with an active chat on mobile
                 } else {
                     setActiveFriendsView('friends'); 
                 }
@@ -418,6 +473,7 @@
                 isChatDM = data.isDM;
                 renderDMs(); 
                 updateChatHeader(currentChatId, isChatDM);
+                showChatArea(); // CRITICAL: Show chat when chat changes
             });
             
             socket.on('requestError', (message) => { alert(`Ошибка: ${message}`); });
@@ -439,7 +495,6 @@
             const contentDiv = createElement('div', 'message-content');
             
             const header = createElement('div');
-            // Check if it's an announcement for specific styling
             const isAnnouncement = msg.username === 'SYSTEM ANNOUNCEMENT';
             const usernameStyle = isAnnouncement ? 'color: var(--danger-color); font-weight: bold;' : '';
             
@@ -474,6 +529,7 @@
             } else {
                  currentChatTitleEl.textContent = 'Чат Канала'; 
             }
+             updateGUI(); // Update back button visibility
         }
         
         function renderDMs() {
@@ -495,6 +551,7 @@
                         joinChat(id, true);
                     }
                     setActiveFriendsView('friends');
+                    showChatArea(); // CRITICAL: Show chat on click
                 });
                 
                 item.appendChild(div);
@@ -533,6 +590,7 @@
             renderDMs();
             updateChatHeader(currentChatId, isChatDM); 
             messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Загрузка истории...</p>`;
+            showChatArea(); // Ensure chat is visible when joining
         }
         
         function setActiveFriendsView(view) {
@@ -594,7 +652,6 @@
                     return;
                 }
             } else if (cmd === 'announce') {
-                // Get everything after the first word "announce"
                 const announceIndex = commandInput.toLowerCase().indexOf('announce');
                 messageContent = commandInput.substring(announceIndex + 'announce'.length).trim();
                 
@@ -603,14 +660,12 @@
                     return;
                 }
             } else if (cmd !== 'listusers') {
-                 // Check for unknown commands that don't need a target/message
                  if (!['listusers'].includes(cmd)) {
                      alert(`Неизвестная команда: ${cmd}`);
                      return;
                  }
             }
             
-            // Send command to server
             socket.emit('adminCommand', { 
                 command: cmd, 
                 targetUsername: targetUsername, 
@@ -704,8 +759,13 @@
             
             openSettingsBtn.addEventListener('click', () => openModal('settings-modal'));
             
-            // Listener for Admin Console Button
             adminConsoleBtn.addEventListener('click', openAdminConsole);
+            
+            // Mobile: Back button handler
+            backToFriendsBtn.addEventListener('click', showFriendsPanel);
+
+            // Handle window resize for mobile GUI update
+            window.addEventListener('resize', updateGUI);
             
             settingsMenu.addEventListener('click', (e) => {
                 const item = e.target.closest('.setting-item');
@@ -766,6 +826,7 @@
 
             logoutBtn.addEventListener('click', handleLogout);
             
+            // File input listeners for display names (fixes "камера" issue where file wasn't registered)
             document.getElementById('auth-avatar-file').addEventListener('change', (e) => {
                  document.getElementById('auth-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Выберите аватар (макс. 2МБ)';
             });

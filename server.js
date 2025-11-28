@@ -1,4 +1,3 @@
-
 // --- Server Setup and Dependencies ---
 const express = require('express');
 const http = require('http');
@@ -6,7 +5,7 @@ const socketio = require('socket.io');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs').promises; // Используем fs.promises для асинхронных операций с файлами
 
 const app = express();
 const server = http.createServer(app);
@@ -17,9 +16,9 @@ const JWT_SECRET = 'fdsfjsdklk$!#JH$@KLHJ$LASKDASJKFHdsnmfk'; // !!! CHANGE THIS
 
 // --- Middleware and Setup ---
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR);
-}
+// Проверка и создание директории асинхронно
+fs.mkdir(UPLOAD_DIR, { recursive: true }).catch(console.error);
+
 app.use('/uploads', express.static(UPLOAD_DIR));
 app.use(express.json()); 
 app.use(express.urlencoded({ extended: true }));
@@ -30,14 +29,16 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, UPLOAD_DIR);
     },
+    // Временно называем файл, окончательное имя дадим после регистрации/аутентификации
     filename: (req, file, cb) => {
-        const userId = req.user ? req.user.userId : 'temp_reg'; 
-        cb(null, `${userId}_${Date.now()}${path.extname(file.originalname)}`);
+        // req.user может быть null при регистрации, используем временный префикс
+        const prefix = req.user ? req.user.userId : 'temp_reg'; 
+        cb(null, `${prefix}_${Date.now()}${path.extname(file.originalname)}`);
     }
 });
 const upload = multer({ 
     storage: storage, 
-    limits: { fileSize: 2 * 1024 * 1024 },
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
     fileFilter: (req, file, cb) => {
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
@@ -52,15 +53,15 @@ let users = [
     // --- АККАУНТ АДМИНИСТРАТОРА (Создателя) ---
     { id: 100, username: 'Today_Idk', password: 'adminpassword', avatar: '/img/anon_red.png', isAdmin: true, isBlocked: false }, 
     // ------------------------------------------
-    { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png', isBlocked: false },
-    { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png', isBlocked: false }
+    { id: 101, username: 'testuser', password: 'password', avatar: '/img/anon_blue.png', isAdmin: false, isBlocked: false },
+    { id: 102, username: 'friend_one', password: 'password', avatar: '/img/anon_green.png', isAdmin: false, isBlocked: false }
 ];
 let channels = []; 
 let channelIdCounter = 1001; 
 let messageIdCounter = 1;
+let userIdCounter = 103; // Для новых пользователей
 
 let friendRequests = {}; 
-
 let friends = {
     101: [102], 
     102: [101] 
@@ -131,15 +132,14 @@ function broadcastAnnouncement(message) {
     const announcement = {
         id: messageIdCounter++,
         channelId: 0, 
-        user_id: 100, // Sender is Admin
+        user_id: 100, 
         username: 'SYSTEM ANNOUNCEMENT',
         avatar: '/img/anon_red.png',
         content: message,
         timestamp: Date.now(),
-        isDM: 0 // Not a DM
+        isDM: 0 
     };
     
-    // Send to all connected sockets
     io.emit('systemAnnouncement', announcement); 
     console.log(`[ADMIN] Announcement: ${message}`);
 }
@@ -147,37 +147,49 @@ function broadcastAnnouncement(message) {
 // --- API Endpoints ---
 
 /** POST /api/register - Register a new user. */
-app.post('/api/register', upload.single('avatar'), (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ message: 'Username and password are required' });
-    if (getUserByUsername(username)) return res.status(400).json({ message: 'Username is already taken' });
-
-    const newUserId = users.length + 101;
-    const newUser = {
-        id: newUserId,
-        username: username,
-        password: password, 
-        avatar: req.file ? `/uploads/temp_reg_${path.parse(req.file.filename).base}` : '/img/anon_blue.png',
-        isAdmin: false,
-        isBlocked: false
-    };
-    
-    // Rename temp file if registration was successful
-    if (req.file) {
-        const oldPath = req.file.path;
-        const newFilename = `${newUserId}_${Date.now()}${path.extname(req.file.originalname)}`;
-        const newPath = path.join(UPLOAD_DIR, newFilename);
+app.post('/api/register', (req, res, next) => {
+    // Временный middleware для регистрации: req.user еще не существует
+    upload.single('avatar')(req, res, async (err) => {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: err.message });
+        } else if (err) {
+            return res.status(400).json({ message: err.message });
+        }
         
-        fs.rename(oldPath, newPath, (err) => {
-            if (err) console.error('Error renaming file:', err);
-        });
-        newUser.avatar = `/uploads/${newFilename}`;
-    }
+        const { username, password } = req.body;
+        if (!username || !password) return res.status(400).json({ message: 'Username and password are required' });
+        if (getUserByUsername(username)) return res.status(400).json({ message: 'Username is already taken' });
 
-    users.push(newUser);
+        const newUserId = userIdCounter++;
+        const newUser = {
+            id: newUserId,
+            username: username,
+            password: password, 
+            avatar: '/img/anon_blue.png', // Default
+            isAdmin: false,
+            isBlocked: false
+        };
+        
+        // Rename temp file if registration was successful
+        if (req.file) {
+            const oldPath = req.file.path;
+            const newFilename = `${newUserId}_${Date.now()}${path.extname(req.file.originalname)}`;
+            const newPath = path.join(UPLOAD_DIR, newFilename);
+            
+            try {
+                await fs.rename(oldPath, newPath);
+                newUser.avatar = `/uploads/${newFilename}`;
+            } catch (err) {
+                console.error('Error renaming file during registration:', err);
+            }
+        }
 
-    res.status(201).json({ message: 'User successfully registered.' });
+        users.push(newUser);
+
+        res.status(201).json({ message: 'User successfully registered.' });
+    });
 });
+
 
 /** POST /api/login - Authenticate and return JWT. */
 app.post('/api/login', (req, res) => {
@@ -207,7 +219,121 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// ... (Other API endpoints like /api/profile/:userId, /api/update-profile, /api/delete-account remain the same) ...
+
+/** POST /api/update-profile - Update user profile data (username, avatar). */
+app.post('/api/update-profile', verifyToken, upload.single('avatar'), async (req, res) => {
+    const userId = req.user.userId;
+    const user = getUserById(userId);
+
+    if (!user) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+
+    let newUsername = req.body.newUsername;
+    let newAvatar = user.avatar;
+    let changesMade = false;
+
+    // 1. Handle Username Update
+    if (newUsername && newUsername !== user.username) {
+        const existingUser = getUserByUsername(newUsername);
+        if (existingUser && existingUser.id !== userId) {
+            return res.status(400).json({ message: 'Username is already taken.' });
+        }
+        user.username = newUsername;
+        changesMade = true;
+    }
+
+    // 2. Handle Avatar Update
+    if (req.file) {
+        // Удаляем старый аватар, если это не дефолтный файл
+        if (user.avatar && !user.avatar.includes('/img/anon_')) {
+            const oldAvatarPath = path.join(__dirname, user.avatar);
+            try {
+                await fs.unlink(oldAvatarPath);
+            } catch (err) {
+                if (err.code !== 'ENOENT') console.error('Error deleting old avatar:', err); // Ignore if file not found
+            }
+        }
+        
+        // Переименовываем новый файл
+        const oldPath = req.file.path;
+        const newFilename = `${user.id}_${Date.now()}${path.extname(req.file.originalname)}`;
+        const newPath = path.join(UPLOAD_DIR, newFilename);
+        
+        try {
+            await fs.rename(oldPath, newPath);
+            newAvatar = `/uploads/${newFilename}`;
+            user.avatar = newAvatar;
+            changesMade = true;
+        } catch (err) {
+            console.error('Error renaming new avatar:', err);
+            return res.status(500).json({ message: 'Failed to save new avatar.' });
+        }
+    }
+
+    if (changesMade) {
+        // Уведомляем пользователя о необходимости обновления GUI (через handleProfileUpdateSuccess на клиенте)
+        return res.json({ 
+            message: 'Profile successfully updated.',
+            username: user.username,
+            avatar: user.avatar
+        });
+    }
+
+    res.json({ message: 'No changes detected.' });
+});
+
+/** POST /api/delete-account - Delete the user's account. */
+app.post('/api/delete-account', verifyToken, async (req, res) => {
+    const userId = req.user.userId;
+    const userIndex = users.findIndex(u => u.id === userId);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: 'User not found.' });
+    }
+    
+    const userToDelete = users[userIndex];
+
+    // 1. Удаление файлов аватара
+    if (userToDelete.avatar && !userToDelete.avatar.includes('/img/anon_')) {
+        const avatarPath = path.join(__dirname, userToDelete.avatar);
+        try {
+            await fs.unlink(avatarPath);
+        } catch (err) {
+             if (err.code !== 'ENOENT') console.error('Error deleting avatar during account deletion:', err);
+        }
+    }
+
+    // 2. Удаление из пользователей
+    users.splice(userIndex, 1);
+
+    // 3. Удаление из списков друзей и DM-каналов
+    delete friends[userId];
+    Object.keys(friends).forEach(id => {
+        friends[id] = friends[id].filter(friendId => friendId !== userId);
+    });
+
+    Object.keys(friendRequests).forEach(id => {
+        delete friendRequests[id][userId];
+        if (friendRequests[userId]) delete friendRequests[userId][id];
+    });
+
+    // 4. Оповещение и отключение
+    if (connectedUsers[userId]) {
+        connectedUsers[userId].emit('accountDeleted');
+        connectedUsers[userId].disconnect(true);
+        delete connectedUsers[userId];
+    }
+    
+    // 5. Удаление DM-каналов, связанных с пользователем
+    // (В этом простом примере мы оставим каналы, но удалим ссылки)
+    delete userDMChannels[userId];
+    Object.keys(userDMChannels).forEach(id => {
+         delete userDMChannels[id][userId];
+    });
+
+    res.json({ message: 'Account successfully deleted.' });
+});
 
 
 // --- Socket.io Handlers: Real-time Communication ---
@@ -223,11 +349,14 @@ io.on('connection', (socket) => {
             
             if (user && !user.isBlocked) {
                 currentUser = user;
+                // --- ФИКС: Убеждаемся, что сокет присоединен к комнате пользователя ---
                 socket.join(`user_${currentUser.id}`);
                 connectedUsers[currentUser.id] = socket;
                 
                 const userFriends = (friends[currentUser.id] || []).map(friendId => {
                     const friend = getUserById(friendId);
+                    // Важно: Проверяем, существует ли друг (может быть удален)
+                    if (!friend) return null; 
                     const dmChannel = createDMChannel(currentUser.id, friendId);
 
                     return {
@@ -236,26 +365,31 @@ io.on('connection', (socket) => {
                         avatar: friend.avatar,
                         channelId: dmChannel.id
                     };
-                });
+                }).filter(f => f !== null); // Удаляем несуществующих друзей
                 
                 const incomingRequests = Object.keys(friendRequests).filter(key => {
                     const requesterId = parseInt(key);
                     return friendRequests[requesterId] && friendRequests[requesterId][currentUser.id] === 'pending';
                 }).map(requesterId => {
                     const requester = getUserById(parseInt(requesterId));
+                    if (!requester) return null;
                     return {
                         userId: requester.id,
                         username: requester.username,
                         avatar: requester.avatar
                     };
-                });
+                }).filter(r => r !== null);
                 
+                // Переключение на первый DM, если нет активного чата
                 if (currentChatId === 0 && userFriends.length > 0) {
                      currentChatId = userFriends[0].channelId;
                 }
                 
                 if (currentChatId !== 0) {
                      socket.join(`channel_${currentChatId}`);
+                     // Отправляем историю сообщений сразу
+                     const activeChannel = getChannelById(currentChatId);
+                     if(activeChannel) socket.emit('messageHistory', activeChannel.messages);
                 }
 
                 socket.emit('initialData', {
@@ -277,7 +411,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('joinChat', ({ newId, isDM }) => {
-        // ... (Join Chat logic remains the same)
         if (!currentUser || !isDM) return socket.emit('requestError', 'Invalid chat request.');
         
         if (currentChatId !== 0) {
@@ -301,7 +434,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('chat message', (data) => {
-        // ... (Chat Message logic remains the same)
         if (!currentUser || currentChatId === 0) return socket.emit('requestError', 'Select a friend to message.');
 
         const channel = getChannelById(currentChatId);
@@ -362,18 +494,10 @@ io.on('connection', (socket) => {
 
             socket.emit('requestSuccess', `${recipient.username} already sent you a request. Automatically accepted!`);
             
+            // --- ФИКС: Принудительное обновление для обоих пользователей ---
             if (connectedUsers[senderId]) {
-                connectedUsers[senderId].emit('friendRequestAccepted', {
-                    userId: recipientId,
-                    username: currentUser.username,
-                    avatar: currentUser.avatar,
-                    channelId: dmChannel.id
-                });
-                // --- ФИКС 1: ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ДЛЯ ОТПРАВИТЕЛЯ (Recipient) ---
-                connectedUsers[senderId].emit('authenticate', generateToken(getUserById(senderId))); 
+                 connectedUsers[senderId].emit('authenticate', generateToken(getUserById(senderId))); 
             }
-            
-            // Notify current user (recipient) to refresh their list
             socket.emit('authenticate', generateToken(currentUser)); 
             return;
         }
@@ -416,23 +540,17 @@ io.on('connection', (socket) => {
 
             socket.emit('requestSuccess', `Request from ${sender.username} accepted.`);
             
+            // --- ФИКС: Принудительное обновление для обоих пользователей ---
             if (connectedUsers[senderId]) {
-                connectedUsers[senderId].emit('friendRequestAccepted', {
-                    userId: recipientId,
-                    username: currentUser.username,
-                    avatar: currentUser.avatar,
-                    channelId: dmChannel.id
-                });
-                // --- ФИКС 1: ПРИНУДИТЕЛЬНОЕ ОБНОВЛЕНИЕ ДЛЯ ОТПРАВИТЕЛЯ (Sender) ---
-                connectedUsers[senderId].emit('authenticate', generateToken(sender)); 
+                 connectedUsers[senderId].emit('authenticate', generateToken(sender)); 
             }
-            
-            // Re-authenticate RECIPIENT to refresh their friend list
             socket.emit('authenticate', generateToken(currentUser)); 
 
         } else if (action === 'reject') {
             delete friendRequests[senderId][recipientId];
             socket.emit('requestSuccess', `Request from ${sender.username} rejected.`);
+            // Принудительная аутентификация для обновления списка запросов
+            socket.emit('authenticate', generateToken(currentUser)); 
         }
     });
     
@@ -444,7 +562,11 @@ io.on('connection', (socket) => {
 
         const parts = command.trim().toLowerCase().split(' ');
         const cmd = parts[0];
-        const targetUser = getUserByUsername(targetUsername);
+        
+        let targetUser = null;
+        if (targetUsername) {
+            targetUser = getUserByUsername(targetUsername);
+        }
 
         switch (cmd) {
             case 'listusers':
@@ -461,7 +583,6 @@ io.on('connection', (socket) => {
                 targetUser.isBlocked = true;
                 socket.emit('requestSuccess', `User ${targetUsername} (ID: ${targetUser.id}) has been blocked.`);
                 
-                // Disconnect target if online
                 if (connectedUsers[targetUser.id]) {
                     connectedUsers[targetUser.id].emit('requestError', 'Your account has been blocked by an administrator.');
                     connectedUsers[targetUser.id].disconnect(true);
@@ -476,7 +597,9 @@ io.on('connection', (socket) => {
 
             case 'announce':
                 if (!message) return socket.emit('requestError', 'Announcement message is missing.');
-                broadcastAnnouncement(message);
+                // Извлекаем полное сообщение, включая пробелы
+                const announceMessage = command.substring(command.toLowerCase().indexOf('announce') + 'announce'.length).trim();
+                broadcastAnnouncement(announceMessage);
                 socket.emit('requestSuccess', 'Announcement broadcasted successfully.');
                 break;
 
