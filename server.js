@@ -124,7 +124,7 @@ const userSocketMap = {};
 
 const generateAnonymousAvatar = () => {
     // В идеале: эти файлы должны быть доступны в папке 'public/img/'
-    const avatars = ['/img/anon_red.png', '/img/anon_blue.png', '/img/anon_green.png', '/img/anon_yellow.png'];
+    const avatars = ['/img/anon_red.png'];
     return avatars[Math.floor(Math.random() * avatars.length)];
 };
 
