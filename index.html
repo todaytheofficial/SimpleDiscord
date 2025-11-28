@@ -1,53 +1,414 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Simple Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChaoticCord - Discord Style</title>
+    
     <style>
-        /* Минимальные стили для отображения */
-        body { margin: 0; padding-bottom: 3rem; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        #form { background: rgba(0, 0, 0, 0.15); padding: 0.25rem; position: fixed; bottom: 0; left: 0; right: 0; display: flex; height: 3rem; box-sizing: border-box; backdrop-filter: blur(10px); }
-        #input { border: none; padding: 0 1rem; flex-grow: 1; border-radius: 2rem; margin: 0.25rem; }
-        #input:focus { outline: none; }
-        #form > button { background: #333; border: none; padding: 0 1rem; margin: 0.25rem; border-radius: 3px; outline: none; color: #fff; cursor: pointer; }
-        #messages { list-style-type: none; margin: 0; padding: 0; }
-        #messages > li { padding: 0.5rem 1rem; }
-        #messages > li:nth-child(odd) { background: #efefef; }
+        /* --- 🎨 Стиль Discord (Серый, Темный) --- */
+        :root {
+            --bg-darker: #1e1f22; /* Самый темный фон (Серверы) */
+            --bg-dark: #2b2d31;   /* Темный фон (Каналы/Друзья/Пользователи) */
+            --bg-medium: #383a40; /* Фон чата */
+            --text-primary: #dbdee1;
+            --text-secondary: #949ba4;
+            --brand-color: #5865f2; /* Синий/Фиолетовый */
+            --online-color: #388647;
+            --offline-color: #72767d;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-medium);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* --- Общий Макет (Grid) --- */
+        #app-container {
+            display: grid;
+            /* Серверы | Каналы/Друзья | Чат | Пользователи */
+            grid-template-columns: 72px 240px 1fr 240px; 
+            height: 100vh;
+        }
+
+        /* --- 1. Панель Серверов (Server List) --- */
+        #server-list {
+            grid-column: 1;
+            background-color: var(--bg-darker);
+            padding-top: 12px;
+            overflow-y: auto;
+        }
+        .server-icon {
+            width: 48px; height: 48px; margin: 8px auto; border-radius: 50%; 
+            background-color: var(--bg-medium);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: bold; color: white; cursor: pointer;
+            transition: border-radius 0.2s, background-color 0.2s;
+        }
+        .server-icon:hover { border-radius: 35%; background-color: var(--brand-color); }
+
+        /* --- 2. Панель Друзей/Каналов (Friends/Channels) --- */
+        #friends-channels-panel {
+            grid-column: 2;
+            background-color: var(--bg-dark);
+            padding: 10px;
+            overflow-y: auto;
+        }
+        #friends-channels-panel h3 {
+            color: var(--text-secondary); font-size: 14px; text-transform: uppercase; margin-top: 20px;
+        }
+        .friend-item, .channel-item, .request-item {
+            padding: 8px; display: flex; align-items: center; border-radius: 4px; cursor: pointer; margin-bottom: 2px;
+        }
+        .friend-item:hover, .channel-item:hover { background-color: var(--bg-medium); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; transition: background-color 0.3s; }
+        .online { background-color: var(--online-color); }
+        .offline { background-color: var(--offline-color); }
+
+        /* --- 3. Область Чата (Chat Area) --- */
+        #chat-area {
+            grid-column: 3;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-medium);
+            position: relative;
+        }
+        #messages-container {
+            flex-grow: 1;
+            padding: 0 20px 20px 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 12px; padding-top: 5px; display: flex; position: relative; animation: fadeIn 0.3s ease-out; 
+        }
+        .message-content { margin-left: 10px; }
+        .message strong { color: white; margin-right: 5px; font-weight: 500; }
+        .timestamp { color: var(--text-secondary); font-size: 12px; margin-left: 10px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: var(--offline-color); }
+        
+        /* Ввод сообщений */
+        #form { padding: 15px 20px; background-color: var(--bg-medium); border-top: 1px solid #1e1f22; }
+        #form-inner { display: flex; background-color: var(--bg-dark); border-radius: 8px; padding: 8px; }
+        #input { border: none; padding: 0 10px; flex-grow: 1; background: none; color: var(--text-primary); outline: none; font-size: 16px; }
+        #form > #form-inner > button { background-color: var(--brand-color); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+        #form > #form-inner > button:hover { background-color: #4f5bcf; }
+
+        /* --- 4. Список Пользователей (User List) --- */
+        #user-list { grid-column: 4; background-color: var(--bg-dark); padding: 10px; overflow-y: auto; }
+        #user-list h3 { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+
+        /* --- Экраны Аутентификации (Overlay) --- */
+        #auth-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-dark); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #auth-form { background: var(--bg-darker); padding: 30px; border-radius: 5px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); width: 350px; }
+        #auth-form input { width: 90%; padding: 12px; margin: 8px 0; background-color: var(--bg-medium); border: 1px solid #2f3136; color: var(--text-primary); border-radius: 3px; outline: none; }
+        #auth-form button { width: 100%; padding: 12px; margin-top: 10px; background-color: var(--brand-color); color: white; border: none; border-radius: 3px; font-size: 16px; cursor: pointer; }
+        .auth-switch { text-align: center; color: var(--brand-color); cursor: pointer; font-size: 14px; margin-top: 10px; }
+        .action-button { background-color: var(--online-color); color: white; border: none; padding: 4px 8px; border-radius: 3px; margin-left: 5px; cursor: pointer; font-size: 12px;}
+        .action-button.reject { background-color: #da373c; }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
     </style>
 </head>
 <body>
-    <ul id="messages"></ul>
     
-    <form id="form" action="">
-        <input id="input" autocomplete="off" placeholder="Введите ваше сообщение..." /><button>Отправить</button>
-    </form>
+    <div id="auth-screen">
+        <form id="auth-form">
+            <h2>Добро пожаловать</h2>
+            <input type="text" id="auth-username" placeholder="Имя Пользователя" required>
+            <input type="password" id="auth-password" placeholder="Пароль" required>
+            <button type="submit" id="auth-button">Войти</button>
+            <p id="auth-switch-text" class="auth-switch">
+                <small>Переключиться на Регистрацию</small>
+            </p>
+            <div id="auth-message" style="color: red; margin-top: 10px;"></div>
+        </form>
+    </div>
+
+    <div id="app-container" style="display: none;">
+
+        <aside id="server-list">
+            <div class="server-icon" style="background-color: var(--brand-color);">C</div>
+        </aside>
+
+        <aside id="friends-channels-panel">
+            <h2 style="font-size: 18px; color: white;">ChaoticCord</h2>
+            
+            <h3>КАНАЛЫ</h3>
+            <div class="channel-item"># general</div>
+            
+            <h3>ДРУЗЬЯ</h3>
+            <ul id="friends-list-container" style="list-style: none; padding: 0;">
+                </ul>
+            
+            <h3>ЗАПРОСЫ</h3>
+            <ul id="friend-requests-container" style="list-style: none; padding: 0;">
+                </ul>
+
+            <input type="text" id="friend-request-input" placeholder="Добавить друга по имени" style="width: 90%; padding: 5px; background: var(--bg-medium); border: none; color: white; margin-top: 10px; border-radius: 3px;">
+            <button id="send-request-btn" style="width: 100%; margin-top: 5px; background: #388647; color: white; border: none; padding: 5px; border-radius: 3px;">Отправить Запрос</button>
+        </aside>
+
+        <main id="chat-area">
+            <div id="messages-container">
+                </div>
+            
+            <form id="form" action="">
+                <div id="form-inner">
+                    <input id="input" autocomplete="off" placeholder="Сообщение в #general..." />
+                    <button>Отправить</button>
+                </div>
+            </form>
+        </main>
+
+        <aside id="user-list">
+            <h3 id="online-users-count">ОНЛАЙН — 0</h3>
+            <ul id="online-users-list" style="list-style: none; padding: 0;">
+                </ul>
+        </aside>
+
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Создаем соединение с сервером
-        const socket = io();
-
-        const messages = document.getElementById('messages');
+        // --- Переменные и Хранилище ---
+        const API_URL = window.location.origin;
+        let token = localStorage.getItem('token');
+        let currentUserId = localStorage.getItem('userId');
+        let currentUsername = localStorage.getItem('username');
+        let isRegisterMode = false;
+        
+        // --- Элементы GUI ---
+        const authScreen = document.getElementById('auth-screen');
+        const authForm = document.getElementById('auth-form');
+        const authButton = document.getElementById('auth-button');
+        const authMessage = document.getElementById('auth-message');
+        const authSwitchText = document.getElementById('auth-switch-text');
+        const appContainer = document.getElementById('app-container');
+        const messagesContainer = document.getElementById('messages-container');
         const form = document.getElementById('form');
         const input = document.getElementById('input');
+        const sendRequestBtn = document.getElementById('send-request-btn');
+        const friendRequestInput = document.getElementById('friend-request-input');
+        const friendRequestsContainer = document.getElementById('friend-requests-container');
+        const onlineUsersList = document.getElementById('online-users-list');
+        const onlineUsersCount = document.getElementById('online-users-count');
 
-        // Обработка отправки формы
-        form.addEventListener('submit', function(e) {
-            e.preventDefault(); // Предотвращаем стандартную отправку формы (перезагрузку страницы)
-            if (input.value) {
-                // Отправляем сообщение на сервер
-                socket.emit('chat message', input.value);
-                input.value = '';
+        let socket; 
+        
+        // --- 1. ЛОГИКА АУТЕНТИФИКАЦИИ ---
+        
+        function toggleAuthMode() {
+            isRegisterMode = !isRegisterMode;
+            authButton.textContent = isRegisterMode ? 'Зарегистрироваться' : 'Войти';
+            authSwitchText.innerHTML = isRegisterMode ? '<small>Переключиться на Вход</small>' : '<small>Переключиться на Регистрацию</small>';
+        }
+        authSwitchText.addEventListener('click', toggleAuthMode);
+
+        authForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+            
+            const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+            
+            try {
+                const response = await fetch(API_URL + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && !isRegisterMode) {
+                    // Вход успешен
+                    token = data.token;
+                    currentUserId = data.userId;
+                    currentUsername = data.username;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('userId', currentUserId);
+                    localStorage.setItem('username', currentUsername);
+                    
+                    authScreen.style.display = 'none';
+                    appContainer.style.display = 'grid';
+                    connectSocket(); 
+                    
+                } else if (response.ok && isRegisterMode) {
+                    // Регистрация успешна
+                    authMessage.textContent = 'Регистрация успешна! Теперь войдите.';
+                    authMessage.style.color = 'var(--online-color)';
+                    toggleAuthMode();
+                    
+                } else {
+                    // Ошибка
+                    authMessage.textContent = data.message || 'Ошибка. Попробуйте снова.';
+                    authMessage.style.color = 'red';
+                }
+            } catch (error) {
+                authMessage.textContent = 'Ошибка сети или сервера.';
+                authMessage.style.color = 'red';
             }
         });
 
-        // Обработка получения сообщения от сервера
-        socket.on('chat message', function(msg) {
-            const item = document.createElement('li');
-            item.textContent = msg;
-            messages.appendChild(item);
-            // Прокрутка вниз
-            window.scrollTo(0, document.body.scrollHeight);
+        if (token) {
+            authScreen.style.display = 'none';
+            appContainer.style.display = 'grid';
+            connectSocket(); 
+        }
+
+        // --- 2. ЛОГИКА SOCKET.IO И ЧАТА ---
+        
+        function connectSocket() {
+            socket = io(API_URL);
+            
+            socket.on('connect', () => {
+                socket.emit('authenticate', token);
+            });
+            
+            // Получение новых сообщений
+            socket.on('newMessage', displayMessage);
+            
+            // Ошибки сервера
+            socket.on('requestError', (message) => {
+                console.error("Socket Error:", message);
+                alert(`Ошибка: ${message}`);
+            });
+            
+            // Успешный запрос (например, отправка запроса в друзья)
+            socket.on('requestSuccess', (message) => {
+                alert(`Успешно: ${message}`);
+            });
+
+            // Новый запрос в друзья
+            socket.on('newFriendRequest', displayFriendRequest);
+
+            // Принятие запроса
+            socket.on('friendAccepted', (username) => {
+                alert(`${username} принял ваш запрос в друзья!`);
+                // В идеале: обновить friends-list-container
+            });
+            
+            // Обновление статуса (онлайн/оффлайн)
+            socket.on('userStatusUpdate', updateOnlineUsers);
+        }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            if (input.value.trim() && socket) {
+                // Отправляем на сервер:
+                socket.emit('chat message', {
+                    content: input.value,
+                });
+                input.value = '';
+            }
         });
+        
+        // Функция отображения сообщения
+        function displayMessage(data) {
+            const messageEl = document.createElement('div');
+            messageEl.classList.add('message');
+            
+            messageEl.innerHTML = `
+                <div class="avatar"></div>
+                <div class="message-content">
+                    <div>
+                        <strong>${data.username}</strong>
+                        <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+                    </div>
+                    <div class="text">${data.content}</div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // --- 3. ЛОГИКА ДРУЗЕЙ ---
+
+        // Отправка запроса
+        sendRequestBtn.addEventListener('click', () => {
+             const recipientUsername = friendRequestInput.value.trim();
+             if (socket && recipientUsername) {
+                 socket.emit('sendFriendRequest', { recipientUsername });
+                 friendRequestInput.value = '';
+             }
+        });
+
+        // Отображение запроса в списке
+        function displayFriendRequest(data) {
+            // Удалить существующий элемент, если он есть
+            let existingLi = document.getElementById(`request-${data.senderId}`);
+            if (existingLi) existingLi.remove();
+
+            const li = document.createElement('li');
+            li.id = `request-${data.senderId}`;
+            li.innerHTML = `
+                <div class="request-item friend-item">
+                    ${data.senderUsername}
+                    <button class="action-button" onclick="acceptRequest('${data.senderId}')">Принять</button>
+                    <button class="action-button reject" onclick="rejectRequest('${data.senderId}')">Отклонить</button>
+                </div>
+            `;
+            friendRequestsContainer.prepend(li); // Добавляем новый запрос сверху
+        }
+
+        // Принятие запроса (вызывается из кнопки)
+        function acceptRequest(senderId) {
+            if (socket) {
+                socket.emit('acceptFriendRequest', { senderId });
+                // Удаляем запрос из списка после отправки на сервер
+                document.getElementById(`request-${senderId}`).remove();
+            }
+        }
+        
+        // Отклонение запроса (нужно реализовать логику на сервере!)
+        function rejectRequest(senderId) {
+            if (socket) {
+                // socket.emit('rejectFriendRequest', { senderId }); // Серверная логика
+                document.getElementById(`request-${senderId}`).remove();
+                alert('Запрос отклонен (только на клиенте, серверная логика не реализована).');
+            }
+        }
+        
+        // --- 4. ЛОГИКА СТАТУСА ОНЛАЙН ---
+        
+        const onlineUsers = {}; // Хранилище пользователей: userId -> {username, status}
+
+        function updateOnlineUsers(data) {
+            if (data.status === 'online') {
+                onlineUsers[data.userId] = { username: data.username, status: 'online' };
+            } else if (data.status === 'offline') {
+                delete onlineUsers[data.userId];
+            }
+            
+            renderOnlineList();
+        }
+
+        function renderOnlineList() {
+            onlineUsersList.innerHTML = ''; // Очищаем список
+            const usersArray = Object.values(onlineUsers).filter(u => u.username !== currentUsername);
+            
+            usersArray.forEach(user => {
+                const li = document.createElement('li');
+                li.classList.add('friend-item');
+                li.innerHTML = `
+                    <span class="status-dot online"></span>
+                    ${user.username}
+                `;
+                onlineUsersList.appendChild(li);
+            });
+            
+            onlineUsersCount.textContent = `ОНЛАЙН — ${usersArray.length}`;
+        }
     </script>
 </body>
 </html>
