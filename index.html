@@ -21,12 +21,12 @@
                 
                 <div id="auth-avatar-upload" style="display: none; margin: 10px 0;">
                     <label for="auth-avatar-file" class="file-input-container">
-                        <span id="auth-file-name">Select an avatar from PC (max 2MB)</span>
+                        <span id="auth-file-name">Select an Avatar (Max 2MB)</span>
                     </label>
                     <input type="file" id="auth-avatar-file" name="avatar" accept="image/jpeg,image/png,image/gif" style="display: none;">
                 </div>
 
-                <button type="submit" id="auth-button" class="modal-button">Login</button>
+                <button type="submit" id="auth-button" class="modal-button">Log In</button>
                 <p id="auth-switch-text" class="auth-switch">
                     <small>Switch to Register</small>
                 </p>
@@ -47,7 +47,7 @@
 
             <div class="friend-list-header">
                 <span id="show-friends-btn" class="active"><i class="fas fa-users"></i> Friends</span>
-                <span id="show-requests-btn"><i class="fas fa-inbox"></i> Pending (<span id="request-count">0</span>)</span>
+                <span id="show-requests-btn"><i class="fas fa-inbox"></i> Requests (<span id="request-count">0</span>)</span>
             </div>
 
             <hr style="border-top: 1px solid var(--bg-tertiary); margin: 0 0 10px 0;">
@@ -105,7 +105,7 @@
                 <p id="modal-status" style="color: var(--online-color);"></p>
             </div>
             
-            <button class="modal-button" id="add-friend-btn" style="background-color: var(--online-color); display: none;">Action Button</button>
+            <button class="modal-button" id="add-friend-btn" style="background-color: var(--online-color); display: none;">Action</button>
         </div>
     </div>
     
@@ -113,7 +113,7 @@
         <div class="modal-content">
             <span class="close" onclick="closeModal('start-dm-modal')">&times;</span>
             <h2>Send Friend Request</h2>
-            <input type="text" id="dm-recipient-input" placeholder="Enter username" class="modal-input">
+            <input type="text" id="dm-recipient-input" placeholder="Enter Username" class="modal-input">
             <button class="modal-button" id="submit-start-dm">Send Request</button>
         </div>
     </div>
@@ -125,7 +125,7 @@
                 <ul id="settings-menu" style="list-style: none; padding: 0; font-size: 15px;">
                     <li class="setting-item active" data-section="my-account">My Account</li>
                     <li class="setting-item" data-section="themes">Appearance</li>
-                    <li class="setting-item" data-section="privacy">Privacy & Safety</li>
+                    <li class="setting-item" data-section="privacy">Privacy</li>
                     <li class="setting-item logout-item" id="logout-btn">Log Out</li>
                 </ul>
             </div>
@@ -141,7 +141,7 @@
                             <img id="settings-avatar-preview" class="avatar" style="width: 60px; height: 60px; margin-right: 15px;" src="" alt="Avatar">
                             <div>
                                 <strong id="settings-username-display"></strong>
-                                <div style="color: var(--text-sub); font-size: 12px;">Change your details.</div>
+                                <div style="color: var(--text-sub); font-size: 12px;">Update your details.</div>
                             </div>
                         </div>
                         
@@ -149,7 +149,7 @@
                         
                         <div style="margin: 10px 0;">
                             <label for="new-avatar-file" class="file-input-container">
-                                <span id="profile-file-name">Upload new avatar from PC</span>
+                                <span id="profile-file-name">Upload New Avatar</span>
                             </label>
                             <input type="file" id="new-avatar-file" name="avatar" accept="image/jpeg,image/png,image/gif" style="display: none;">
                         </div>
@@ -266,8 +266,8 @@
         function toggleAuthMode() {
             isRegisterMode = !isRegisterMode;
             document.getElementById('auth-avatar-upload').style.display = isRegisterMode ? 'block' : 'none';
-            document.getElementById('auth-button').textContent = isRegisterMode ? 'Register' : 'Login';
-            authSwitchText.querySelector('small').textContent = isRegisterMode ? 'Switch to Login' : 'Switch to Register';
+            document.getElementById('auth-button').textContent = isRegisterMode ? 'Register' : 'Log In';
+            authSwitchText.querySelector('small').textContent = isRegisterMode ? 'Switch to Log In' : 'Switch to Register';
             document.getElementById('auth-message').textContent = '';
         }
 
@@ -300,7 +300,7 @@
             socket.on('messageHistory', (history) => {
                 messagesContainer.innerHTML = ''; 
                 if (history.length === 0) {
-                     messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Start a conversation!</p>`;
+                     messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Start the conversation!</p>`;
                 }
                 history.forEach(msg => displayMessage(msg, true)); 
                 messagesContainer.scrollTop = messagesContainer.scrollHeight; 
@@ -318,6 +318,7 @@
                     }
                     updateGUI();
                  }
+                 // Re-authenticate to update data in socket
                  socket.emit('authenticate', token); 
             });
             
@@ -334,7 +335,7 @@
                 
                 updateChatHeader(currentChatId, isChatDM);
                 if (data.activeChatId !== 0) {
-                    // Automatic history loading
+                    // Auto-load history
                     socket.emit('joinChat', { newId: currentChatId, isDM: true });
                 } else {
                     setActiveFriendsView('friends'); 
@@ -342,18 +343,19 @@
             });
 
             socket.on('friendRequestReceived', (data) => {
-                alert(`New friend request from ${data.username}! Check 'Pending'.`);
+                alert(`New friend request from ${data.username}! Check 'Requests'.`);
                 pendingRequests.push(data);
                 renderRequests();
             });
             
             socket.on('friendRequestAccepted', (data) => {
-                alert(`${data.username} accepted your friend request!`);
+                alert(`${data.username} accepted your request!`);
                 
-                // Update lists
+                // Update lists locally (will fully refresh upon re-authentication)
                 pendingRequests = pendingRequests.filter(req => req.userId != data.userId);
                 renderRequests();
 
+                // Add to friends locally
                 friends.push(data);
                 dms[data.userId] = { channelId: data.channelId }; 
                 renderDMs(); 
@@ -402,18 +404,20 @@
         function updateChatHeader(chatId, isDM) {
             if (chatId === 0) {
                 currentChatTitleEl.textContent = 'Friends';
+                messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Welcome! Select a friend to start a conversation.</p>`;
                 return;
             }
             
             if (isDM) {
-                const partner = friends.find(f => dms[f.userId].channelId === chatId);
+                // Find partner by ChannelId to display the name
+                const partner = friends.find(f => dms[f.userId] && dms[f.userId].channelId === chatId);
                 if (partner) {
                     currentChatTitleEl.textContent = partner.username;
                 } else {
                      currentChatTitleEl.textContent = 'DM Chat';
                 }
             } else {
-                 currentChatTitleEl.textContent = 'Channel Chat'; // Placeholder
+                 currentChatTitleEl.textContent = 'Channel Chat'; 
             }
         }
         
@@ -469,9 +473,15 @@
             currentChatId = id;
             isChatDM = isDM;
             if (emit) {
+                // Request to join chat and get history
                 socket.emit('joinChat', { newId: id, isDM: isDM });
             }
             renderDMs();
+            // Immediate update of chat header
+            updateChatHeader(currentChatId, isChatDM); 
+            
+            // Clear container while history loads
+            messagesContainer.innerHTML = `<p style="text-align: center; color: var(--text-sub); margin-top: 50px;">Loading history...</p>`;
         }
         
         function setActiveFriendsView(view) {
@@ -488,7 +498,7 @@
             settingsUsernameDisplay.textContent = currentUsername;
             newUsernameInput.value = currentUsername;
             newAvatarFile.value = '';
-            document.getElementById('profile-file-name').textContent = 'Upload new avatar from PC';
+            document.getElementById('profile-file-name').textContent = 'Upload New Avatar';
             
             const currentTheme = localStorage.getItem('theme') || 'dark';
             document.querySelectorAll('.theme-option').forEach(opt => {
@@ -509,80 +519,69 @@
             
             // --- AUTH/APP INIT ---
             authSwitchText.addEventListener('click', toggleAuthMode);
-            // index.html - Inside initializeListeners() function
-
-authForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    // 1. Determine endpoint and prepare request options
-    const endpoint = isRegisterMode ? '/api/register' : '/api/login';
-    let requestOptions = { 
-        method: 'POST' 
-    };
-    
-    // 2. Separate logic for Register (multipart/form-data) and Login (JSON)
-    if (isRegisterMode) {
-        // --- РЕГИСТРАЦИЯ (ФАЙЛЫ + ДАННЫЕ) ---
-        // Используем FormData для отправки файлов и полей.
-        // Браузер сам устанавливает заголовок Content-Type: multipart/form-data.
-        requestOptions.body = new FormData(authForm);
-        
-    } else {
-        // --- ВХОД (ТОЛЬКО JSON) ---
-        // Устанавливаем заголовок Content-Type: application/json.
-        requestOptions.headers = { 'Content-Type': 'application/json' }; 
-        
-        // Отправляем данные в виде JSON-строки
-        requestOptions.body = JSON.stringify({
-            username: document.getElementById('auth-username').value,
-            password: document.getElementById('auth-password').value
-        });
-    }
-
-    // 3. Send Request and Handle Response
-    try {
-        const response = await fetch(API_URL + endpoint, requestOptions);
-        const data = await response.json();
-        
-        const authMessageEl = document.getElementById('auth-message');
-        
-        if (response.ok && !isRegisterMode) {
-            // УСПЕШНЫЙ ВХОД
-            token = data.token;
-            currentUserId = data.userId;
-            currentUsername = data.username;
-            currentAvatar = data.avatar;
-
-            localStorage.setItem('token', token);
-            localStorage.setItem('userId', currentUserId);
-            localStorage.setItem('username', currentUsername);
-            localStorage.setItem('avatar', currentAvatar);
             
-            authScreen.style.display = 'none';
-            appContainer.style.display = 'grid';
-            updateGUI();
-            connectSocket(); 
-        } else if (response.ok && isRegisterMode) {
-            // УСПЕШНАЯ РЕГИСТРАЦИЯ
-            authMessageEl.textContent = 'Регистрация прошла успешно! Пожалуйста, войдите.';
-            authMessageEl.style.color = 'var(--online-color)';
-            toggleAuthMode();
-        } else {
-            // ОШИБКА АУТЕНТИФИКАЦИИ
-            authMessageEl.textContent = data.message || 'Ошибка. Повторите попытку.';
-            authMessageEl.style.color = 'var(--danger-color)';
-        }
-    } catch (error) {
-        // ОШИБКА СЕТИ/СЕРВЕРА
-        document.getElementById('auth-message').textContent = 'Сетевая или серверная ошибка.';
-        document.getElementById('auth-message').style.color = 'var(--danger-color)';
-    }
-});
+            authForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const endpoint = isRegisterMode ? '/api/register' : '/api/login';
+                
+                let requestOptions = { method: 'POST' };
+
+                if (isRegisterMode) {
+                    // REGISTRATION: FormData (files + data)
+                    requestOptions.body = new FormData(authForm);
+                    // Critical: Do NOT set Content-Type header; the browser will use multipart/form-data
+                } else {
+                    // LOGIN: JSON (data only)
+                    requestOptions.headers = { 'Content-Type': 'application/json' };
+                    requestOptions.body = JSON.stringify({
+                        username: document.getElementById('auth-username').value,
+                        password: document.getElementById('auth-password').value
+                    });
+                }
+                
+                try {
+                    const response = await fetch(API_URL + endpoint, requestOptions);
+                    const data = await response.json();
+                    
+                    const authMessageEl = document.getElementById('auth-message');
+                    
+                    if (response.ok && !isRegisterMode) {
+                        // SUCCESSFUL LOGIN
+                        token = data.token;
+                        currentUserId = data.userId;
+                        currentUsername = data.username;
+                        currentAvatar = data.avatar;
+
+                        localStorage.setItem('token', token);
+                        localStorage.setItem('userId', currentUserId);
+                        localStorage.setItem('username', currentUsername);
+                        localStorage.setItem('avatar', currentAvatar);
+                        
+                        authScreen.style.display = 'none';
+                        appContainer.style.display = 'grid';
+                        updateGUI();
+                        connectSocket(); 
+                    } else if (response.ok && isRegisterMode) {
+                        // SUCCESSFUL REGISTRATION
+                        authMessageEl.textContent = 'Registration successful! Please log in.';
+                        authMessageEl.style.color = 'var(--online-color)';
+                        toggleAuthMode();
+                    } else {
+                        // AUTH ERROR
+                        authMessageEl.textContent = data.message || 'Error. Please try again.';
+                        authMessageEl.style.color = 'var(--danger-color)';
+                    }
+                } catch (error) {
+                    document.getElementById('auth-message').textContent = 'Network or server error.';
+                    document.getElementById('auth-message').style.color = 'var(--danger-color)';
+                }
+            });
 
             // Start chat form listener
             messageForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 if (input.value.trim() && socket && currentChatId !== 0) {
+                    // Send message
                     socket.emit('chat message', { content: input.value.trim() });
                     input.value = '';
                 }
@@ -652,14 +651,15 @@ authForm.addEventListener('submit', async function(e) {
                     if (response.ok) {
                         alert('Profile updated successfully!');
                         closeModal('settings-modal');
-                        // Server sends userUpdateInfo, which triggers GUI update
+                        // Server will send userUpdateInfo to refresh data
+                        
                     } else { alert(`Update failed: ${data.message || 'Server error'}`); }
-                } catch (error) { alert('Network error during profile update.'); }
+                } catch (error) { alert('Network error while updating profile.'); }
             });
 
             // DELETE ACCOUNT LOGIC
             deleteAccountBtn.addEventListener('click', async () => {
-                if (!confirm('Are you sure you want to permanently delete your account? This action cannot be undone.')) { return; }
+                if (!confirm('Are you sure you want to permanently delete your account? This action is irreversible.')) { return; }
                 try {
                     const response = await fetch(`${API_URL}/api/delete-account`, {
                         method: 'POST',
@@ -667,10 +667,10 @@ authForm.addEventListener('submit', async function(e) {
                     });
                     if (!response.ok) {
                         const data = await response.json();
-                        alert(`Deletion failed: ${data.message || 'Server error'}`);
+                        alert(`Deletion error: ${data.message || 'Server error'}`);
                     }
-                    // Success is handled by socket
-                } catch (error) { alert('Network error during account deletion.'); }
+                    // Success is handled by socket event
+                } catch (error) { alert('Network error while deleting account.'); }
             });
 
             // LOGOUT
@@ -678,10 +678,10 @@ authForm.addEventListener('submit', async function(e) {
             
             // --- FILE INPUT HANDLERS ---
             document.getElementById('auth-avatar-file').addEventListener('change', (e) => {
-                 document.getElementById('auth-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Select an avatar from PC (max 2MB)';
+                 document.getElementById('auth-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Select an Avatar (Max 2MB)';
             });
             newAvatarFile.addEventListener('change', (e) => {
-                 document.getElementById('profile-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Upload new avatar from PC';
+                 document.getElementById('profile-file-name').textContent = e.target.files.length > 0 ? e.target.files[0].name : 'Upload New Avatar';
                  if (e.target.files.length > 0) {
                      const reader = new FileReader();
                      reader.onload = function(event) { settingsAvatarPreview.src = event.target.result; };
